@@ -20,8 +20,8 @@ void main() async {
   } else {
     debugPrint(
       '⚠️ [SaloneMarket] Supabase credentials not found.\n'
-      'Run the app with environment variables injected:\n'
-      '  flutter run --dart-define-from-file=.env\n'
+      'Run the app with configuration injected:\n'
+      '  flutter run --dart-define-from-file=../supabase.dev.json\n'
       'or:\n'
       '  flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...\n',
     );

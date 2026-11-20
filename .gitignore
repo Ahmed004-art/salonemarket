@@ -6,6 +6,10 @@
 .env
 .env.local
 .env.*.local
+supabase.dev.json
+supabase.*.json
+*.dev.json
+*.local.json
 *.pem
 *.key
 *.jks

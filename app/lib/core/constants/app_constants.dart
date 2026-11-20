@@ -9,7 +9,7 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   /// Injected at build time via --dart-define=SUPABASE_URL=https://...
-  /// or loaded from .env via --dart-define-from-file=.env
+  /// or loaded from JSON via --dart-define-from-file=../supabase.dev.json
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: String.fromEnvironment(
@@ -19,7 +19,7 @@ class AppConstants {
   );
 
   /// Injected at build time via --dart-define=SUPABASE_ANON_KEY=...
-  /// or loaded from .env via --dart-define-from-file=.env
+  /// or loaded from JSON via --dart-define-from-file=../supabase.dev.json
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue: String.fromEnvironment(

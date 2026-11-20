@@ -1,6 +1,10 @@
 # Secrets and environment files
 .env
 .env.*
+supabase.dev.json
+supabase.*.json
+*.dev.json
+*.local.json
 *.key
 *.pem
 
