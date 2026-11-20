@@ -33,7 +33,7 @@ void main() {
     testWidgets(
       'Guest user is redirected to login when navigating to cart',
       (tester) async {},
-      skip: 'Requires running app instance and Supabase environment',
+      skip: true, // Requires running app instance and Supabase environment
     );
 
     testWidgets(
@@ -46,25 +46,25 @@ void main() {
         // 4. Verify cart badge increments
         // 5. Assert cart_items row in Supabase matches product_id + quantity
       },
-      skip: 'Requires seeded product data and authenticated session',
+      skip: true, // Requires seeded product data and authenticated session
     );
 
     testWidgets(
       'Cart shows correct item count and subtotal',
       (tester) async {},
-      skip: 'Requires seeded cart data',
+      skip: true, // Requires seeded cart data
     );
 
     testWidgets(
       'Checkout address screen pre-fills default address',
       (tester) async {},
-      skip: 'Requires seeded address data for the test customer',
+      skip: true, // Requires seeded address data for the test customer
     );
 
     testWidgets(
       'Checkout payment screen shows simulated payment option',
       (tester) async {},
-      skip: 'Requires checkout flow to be navigable',
+      skip: true, // Requires checkout flow to be navigable
     );
 
     testWidgets(
@@ -78,19 +78,19 @@ void main() {
         // 5. Assert status == 'confirmed'
         // 6. Assert vendor_orders row was created for each vendor in the cart
       },
-      skip: 'Requires initiate-checkout Edge Function deployed to local Supabase',
+      skip: true, // Requires initiate-checkout Edge Function deployed to local Supabase
     );
 
     testWidgets(
       'Order confirmation screen displays order ID and total',
       (tester) async {},
-      skip: 'Requires successful order placement',
+      skip: true, // Requires successful order placement
     );
 
     testWidgets(
       'Digital receipt screen renders PDF-ready layout',
       (tester) async {},
-      skip: 'Requires generate-receipt Edge Function and completed order',
+      skip: true, // Requires generate-receipt Edge Function and completed order
     );
 
     testWidgets(
@@ -102,7 +102,7 @@ void main() {
         // 3. Assert customer-side OrderTracking screen reflects new status
         //    within 2 seconds (Supabase Realtime subscription)
       },
-      skip: 'Requires Realtime enabled on local Supabase and two concurrent sessions',
+      skip: true, // Requires Realtime enabled on local Supabase and two concurrent sessions
     );
   });
 }
