@@ -5,12 +5,17 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // Import the theme directly from the source under test.
 // Adjust the package name if yours differs.
 import 'package:salonemarket/core/theme/app_theme.dart';
 
 void main() {
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
   group('SaloneMarketTheme', () {
     test('lightTheme primary color is Deep Navy (0xFF1A1A2E)', () {
       final theme = SaloneMarketTheme.lightTheme;
