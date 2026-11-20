@@ -1,0 +1,62 @@
+name: Supabase Migration Validation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+
+concurrency:
+  group: supabase-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-migrations:
+    name: Validate Migrations & SQL Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Docker daemon availability
+        run: |
+          if ! docker info > /dev/null 2>&1; then
+            echo "::error::Docker daemon is not available. Supabase local services require Docker."
+            exit 1
+          fi
+          echo "Docker is available."
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Verify Supabase CLI installation
+        run: supabase --version
+
+      - name: Start Supabase local services & apply migrations
+        run: |
+          # 'supabase start' boots PostgreSQL and runs all migrations in supabase/migrations/
+          # sequentially from oldest to newest. Any syntax error, broken dependency,
+          # or constraint failure will cause this step to fail immediately (exit code 1).
+          supabase start
+
+      - name: Lint database schema
+        run: |
+          # 'supabase db lint --local' inspects the live schema for security definer view issues,
+          # missing primary keys, and RLS inconsistencies. Fail-open error suppression has been removed.
+          supabase db lint --local
+
+      - name: Stop Supabase local services
+        if: always()
+        run: supabase stop --no-backup
