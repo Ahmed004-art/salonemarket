@@ -1,3 +1,9 @@
+# Secrets and environment files
+.env
+.env.*
+*.key
+*.pem
+
 # Flutter/Dart build artifacts and tool caches
 .dart_tool/
 .flutter-plugins

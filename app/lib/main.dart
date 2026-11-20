@@ -12,10 +12,20 @@ import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(
-    url: AppConstants.supabaseUrl,
-    anonKey: AppConstants.supabaseAnonKey,
-  );
+  if (AppConstants.isSupabaseConfigured) {
+    await Supabase.initialize(
+      url: AppConstants.supabaseUrl,
+      anonKey: AppConstants.supabaseAnonKey,
+    );
+  } else {
+    debugPrint(
+      '⚠️ [SaloneMarket] Supabase credentials not found.\n'
+      'Run the app with environment variables injected:\n'
+      '  flutter run --dart-define-from-file=.env\n'
+      'or:\n'
+      '  flutter run --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...\n',
+    );
+  }
   runApp(const SaloneMarketApp());
 }
 

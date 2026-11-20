@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../constants/app_constants.dart';
+
 // ── Route path constants ───────────────────────────────────────────────────
 
 /// All named route paths in one place. Import this class wherever you push
@@ -410,7 +412,9 @@ class AppRouter {
   /// 3. Non-vendor users on vendor routes → /home
   /// 4. Non-admin users on admin routes → /home
   static String? _guard(BuildContext context, GoRouterState state) {
-    final session = Supabase.instance.client.auth.currentSession;
+    final session = AppConstants.isSupabaseConfigured
+        ? Supabase.instance.client.auth.currentSession
+        : null;
     final isLoggedIn = session != null;
     final location = state.matchedLocation;
 

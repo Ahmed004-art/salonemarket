@@ -8,17 +8,29 @@ class AppConstants {
   static const String appName = 'SaloneMarket';
   static const String appVersion = '1.0.0';
 
-  /// Injected at build time: flutter run --dart-define=SUPABASE_URL=https://...
+  /// Injected at build time via --dart-define=SUPABASE_URL=https://...
+  /// or loaded from .env via --dart-define-from-file=.env
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '',
+    defaultValue: String.fromEnvironment(
+      'FLUTTER_SUPABASE_URL',
+      defaultValue: '',
+    ),
   );
 
-  /// Injected at build time: flutter run --dart-define=SUPABASE_ANON_KEY=...
+  /// Injected at build time via --dart-define=SUPABASE_ANON_KEY=...
+  /// or loaded from .env via --dart-define-from-file=.env
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: '',
+    defaultValue: String.fromEnvironment(
+      'FLUTTER_SUPABASE_ANON_KEY',
+      defaultValue: '',
+    ),
   );
+
+  /// Whether valid Supabase credentials have been injected at compile time.
+  static bool get isSupabaseConfigured =>
+      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
   static const String currency = 'SLL';
   static const String currencySymbol = 'Le';
