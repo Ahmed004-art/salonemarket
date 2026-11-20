@@ -1,0 +1,28 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - avoid_print
+    - prefer_single_quotes
+    - avoid_redundant_argument_values
+    - require_trailing_commas
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - avoid_unnecessary_containers
+    - sized_box_for_whitespace
+    - use_super_parameters
+    - use_colored_box
+    - avoid_positional_boolean_parameters
+    # prefer_named_parameters: not an official lint rule; enforced via code review
+    - sort_constructors_first
+    - directives_ordering
+    - always_put_required_named_parameters_first
+
+analyzer:
+  errors:
+    missing_required_param: error
+    missing_return: error
+    dead_code: warning
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'

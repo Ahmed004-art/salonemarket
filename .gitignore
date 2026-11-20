@@ -1,0 +1,48 @@
+# ============================================================
+# SaloneMarket — Root .gitignore
+# ============================================================
+
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# --- Supabase ---
+.branches/
+supabase/.temp/
+
+# --- Node ---
+node_modules/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+
+# --- Flutter/Dart (root level) ---
+.dart_tool/
+
+# --- Coverage ---
+coverage/
+
+# --- Build artifacts ---
+*.apk
+*.ipa
+*.aab
+
+# --- Certificates ---
+*.p12
+*.mobileprovision
+
+# NOTE: app/pubspec.lock is intentionally NOT ignored (reproducible builds)
