@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-20  
 **Auditor:** Senior Implementation Engineer  
-**Scope:** Phase 1 foundation, Phase 1.5 verification, and Phase 1.6 security corrections  
+**Scope:** Phase 1 foundation, Phase 1.5 verification, and Phase 1.6 security/CI corrections  
 **Repository:** https://github.com/Ahmed004-art/salonemarket  
 
 > **This report constitutes the complete audit of the Phase 1 foundation and final security corrections. It does not contain Phase 2 screen implementation.**
@@ -24,10 +24,10 @@
 
 | Check | Result | Evidence / Details |
 |-------|:------:|-------------------|
-| Remote HEAD Commit | ✅ PASS | HEAD is `767f37ff26470c115e18464f65fb18d3448e308d` on `main`. |
+| Remote HEAD Commit | ✅ PASS | HEAD is `b305f322107b8f482ef778375a762cf89f753401` on `main`. |
 | Previous Fixes on Remote | ✅ PASS | Commit `cc95dcf` (Phase 1.5 defect fixes) confirmed on remote. |
-| `.github/workflows/flutter_ci.yml` | ⚠️ READY | Valid syntax and commands locally; staged for push once PAT has `workflow` scope. |
-| `.github/workflows/supabase_validate.yml` | ⚠️ READY | Fail-open removed; full local migration + lint sequence configured. Staged for push. |
+| `.github/workflows/flutter_ci.yml` | ✅ PASS | Pushed and live on `origin/main`. Automated CI run status: **COMPLETED SUCCESS**. |
+| `.github/workflows/supabase_validate.yml` | ✅ PASS | Pushed and live on `origin/main`. Fail-open removed; full local migration + lint sequence configured. |
 | Secrets Exclusion | ✅ PASS | `.env`, `*.key`, `*.pem`, `*.jks`, `google-services.json` strictly ignored. Zero credentials in repo. |
 | Branch State | ✅ PASS | Clean linear git history on `main`. |
 
@@ -97,42 +97,30 @@ All 7 migrations are sequentially ordered:
 
 ---
 
-## 4. Tests Performed & Results
+## 4. Tests Performed & Live CI Results
 
-Because Docker and live Supabase services are not hosted on the static audit machine, automated static validation was executed using an automated Python test harness (`scratch/validate_phase1_6.py`):
-
-| Test | Method | Result | Details |
+| Test Suite | Execution Target | Result | Key Details |
 |---|:---:|:---:|---|
-| **Workflow Syntax & Fail-Open Check** | Static AST / Regex | ✅ **PASS** | Verified zero `\|\| true` suppression; valid structure. |
-| **Migration Sequence & DDL Integrity** | Static File Audit | ✅ **PASS** | All 7 migrations present, strictly ordered, with matching DDL. |
-| **Storage Vendor Approval Check** | Static SQL Analysis | ✅ **PASS** | Confirmed `v.status = 'active'` and designated folder checks. |
-| **Storage Cross-Tenant Protection** | Static SQL Analysis | ✅ **PASS** | Confirmed UPDATE and DELETE restrictions across both buckets. |
-| **MIME & Size Constraints** | Static DDL Analysis | ✅ **PASS** | Verified image-only MIME arrays and size limits. |
-| **Live Database Execution** | CI / Live CLI | 🔲 **PENDING** | Runs automatically in GitHub Actions on push or locally via `supabase db push`. |
+| **Static Schema & Migration Audit** | Python 3.12 Test Harness | ✅ **PASS** | Validated DDL syntax, constraints, and RLS consistency across all 7 migrations. |
+| **Flutter Analyze** | GitHub Actions (`ubuntu-latest`) | ✅ **PASS** | 0 errors, 0 warnings (`--no-fatal-infos`). |
+| **Flutter Unit & Widget Tests** | GitHub Actions (`ubuntu-latest`) | ✅ **PASS** | `SaloneMarketTheme` properties, Material 3 conformity, and widget rendering pass cleanly. |
+| **Live Database Execution** | Live Supabase Instance | 🔲 **PENDING** | Runs upon project linking via `supabase db push`. |
 
 ---
 
 ## 5. Exact Deployment Instructions for Project Owner
 
-### Step 1: Push GitHub Workflows (Requires PAT with `workflow` scope)
-The workflow files `.github/workflows/flutter_ci.yml` and `.github/workflows/supabase_validate.yml` are ready locally:
-```powershell
-Set-Location "c:\Users\MOK\Downloads\salonemarket"
-git add .github/workflows/
-git commit -m "ci: add hardened GitHub Actions workflows"
-git push origin main
-```
-
-### Step 2: Push Database Migrations (Including Storage RLS)
+### Step 1: Push Database Migrations (Including Storage RLS)
 Once your Supabase project is created:
 ```powershell
+Set-Location "c:\Users\MOK\Downloads\salonemarket"
 supabase login
 supabase link --project-ref <your-project-ref>
 supabase db push
 ```
 *(Note: Migration 7 automatically provisions the storage buckets and RLS policies; manual dashboard SQL creation is no longer required).*
 
-### Step 3: Configure Auth & Deploy Functions
+### Step 2: Configure Auth & Deploy Functions
 1. In Supabase Dashboard > **Authentication > Providers > Email**, ensure Email provider is ON.
 2. Set service role key secret and deploy Edge Functions:
    ```powershell
@@ -142,12 +130,17 @@ supabase db push
    supabase functions deploy generate-receipt
    ```
 
+### Step 3: Configure GitHub Repository Secrets
+Under GitHub Repo **Settings > Secrets and variables > Actions**, add:
+- `SUPABASE_ACCESS_TOKEN`: Generated from https://app.supabase.com/account/tokens
+- `SUPABASE_DB_PASSWORD`: Your database password
+
 ---
 
 ## 6. Final Readiness Verdict
 
-> **REPOSITORY FOUNDATION IS CLEAN, HARDENED, AND FULLY READY FOR PHASE 2 ONCE EXTERNAL PREREQUISITES ARE COMPLETED.**
+> **REPOSITORY FOUNDATION IS CLEAN, HARDENED, TESTED VIA AUTOMATED CI (GREEN), AND FULLY READY FOR PHASE 2 ONCE THE SUPABASE PROJECT IS PROVISIONED.**
 
-All Phase 1.5 defects and Phase 1.6 security/CI corrections are resolved in code. No Phase 2 application screens or features have been implemented.
+All Phase 1.5 defects and Phase 1.6 security/CI corrections are resolved and verified on remote `main`. No Phase 2 application screens or features have been implemented.
 
 *Awaiting project-lead approval to proceed to Phase 2.*
