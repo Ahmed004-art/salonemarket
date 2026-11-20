@@ -1,4 +1,4 @@
-# Replace project_id with your actual Supabase project reference after creating the project at supabase.com
+project_id = "salonemarket"
 
 [api]
 enabled = true
