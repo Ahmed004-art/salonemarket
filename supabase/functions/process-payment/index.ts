@@ -116,13 +116,13 @@ serve(async (req) => {
       .from('payment_attempts')
       .insert({
         customer_order_id,
+        customer_id: user.id,
         amount: orderTotal,
-        currency: 'SLL',
         method: 'simulated',
         status: 'processing',
         reference,
         is_simulated: true,
-        raw_response: { initiated_at: new Date().toISOString() },
+        metadata: { initiated_at: new Date().toISOString() },
       })
       .select()
       .single()
@@ -146,13 +146,12 @@ serve(async (req) => {
         .from('payment_attempts')
         .update({
           status: 'succeeded',
-          raw_response: {
+          metadata: {
             initiated_at: attempt.created_at,
             completed_at: new Date().toISOString(),
             simulated: true,
             outcome: 'approved',
           },
-          updated_at: new Date().toISOString(),
         })
         .eq('id', attempt.id)
 
@@ -168,7 +167,7 @@ serve(async (req) => {
           status: 'succeeded',
           reference,
           is_simulated: true,
-          notes: 'Simulated payment — no real money transferred',
+          description: 'Simulated payment — no real money transferred',
           metadata: { simulated: true, outcome: 'approved', timestamp: new Date().toISOString() },
         })
         .select()
@@ -200,8 +199,8 @@ serve(async (req) => {
 
         // Insert notifications for each vendor
         const vendorNotifications = vendorOrders.map((vo) => ({
-          profile_id: vo.vendor_id,
-          type: 'new_order',
+          user_id: vo.vendor_id,
+          type: 'payment_received',
           title: 'New Order Received',
           body: `Order #${customer_order_id.substring(0, 8).toUpperCase()} has been confirmed and payment received.`,
           data: { customer_order_id, vendor_order_id: vo.id },
@@ -212,8 +211,8 @@ serve(async (req) => {
 
       // Insert notification for customer
       await supabase.from('notifications').insert({
-        profile_id: user.id,
-        type: 'payment_success',
+        user_id: user.id,
+        type: 'order_confirmed',
         title: 'Payment Successful',
         body: `Your payment of SLL ${orderTotal.toFixed(2)} was successful. Order confirmed!`,
         data: { customer_order_id, reference, transaction_id: transaction.id },
@@ -242,14 +241,13 @@ serve(async (req) => {
         .from('payment_attempts')
         .update({
           status: 'failed',
-          raw_response: {
+          metadata: {
             initiated_at: attempt.created_at,
             completed_at: new Date().toISOString(),
             simulated: true,
             outcome: 'declined',
             reason: 'Simulated decline',
           },
-          updated_at: new Date().toISOString(),
         })
         .eq('id', attempt.id)
 
@@ -263,7 +261,7 @@ serve(async (req) => {
         status: 'failed',
         reference,
         is_simulated: true,
-        notes: 'Simulated payment decline',
+        description: 'Simulated payment decline',
         metadata: {
           simulated: true,
           outcome: 'declined',
@@ -283,7 +281,7 @@ serve(async (req) => {
 
       // Insert failure notification for customer
       await supabase.from('notifications').insert({
-        profile_id: user.id,
+        user_id: user.id,
         type: 'payment_failed',
         title: 'Payment Failed',
         body: 'Your payment could not be processed. Please try again.',

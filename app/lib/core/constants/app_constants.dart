@@ -61,19 +61,22 @@ class PaymentMethod {
 }
 
 /// Notification type identifiers matching `notifications.type` CHECK constraint.
+///
+/// Valid values are those defined in migration 20261120000001_initial_schema.sql.
+/// Do not add values here without also updating the CHECK constraint in a new migration.
 class NotificationType {
   static const String orderPlaced = 'order_placed';
   static const String orderConfirmed = 'order_confirmed';
   static const String orderShipped = 'order_shipped';
   static const String orderDelivered = 'order_delivered';
-  static const String orderCancelled = 'order_cancelled';
   static const String paymentReceived = 'payment_received';
   static const String paymentFailed = 'payment_failed';
-  static const String newReview = 'new_review';
+  static const String reviewReceived = 'review_received';
   static const String vendorApproved = 'vendor_approved';
   static const String vendorSuspended = 'vendor_suspended';
-  static const String lowStock = 'low_stock';
   static const String system = 'system';
+  // NOTE: 'order_cancelled', 'low_stock', 'new_review' were removed — they are
+  // not in the CHECK constraint. Add a migration to extend the constraint first.
 }
 
 /// Supabase Storage bucket names.
