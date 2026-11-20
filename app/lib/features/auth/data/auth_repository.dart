@@ -33,13 +33,6 @@ class UserProfile {
     this.isActive = true,
   });
 
-  final String id;
-  final String fullName;
-  final String role;
-  final String? phone;
-  final String? avatarUrl;
-  final bool isActive;
-
   factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
         id: map['id'] as String,
         fullName: (map['full_name'] as String?) ?? '',
@@ -48,6 +41,13 @@ class UserProfile {
         avatarUrl: map['avatar_url'] as String?,
         isActive: (map['is_active'] as bool?) ?? true,
       );
+
+  final String id;
+  final String fullName;
+  final String role;
+  final String? phone;
+  final String? avatarUrl;
+  final bool isActive;
 }
 
 // ── Repository ────────────────────────────────────────────────────────────
