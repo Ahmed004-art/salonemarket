@@ -36,8 +36,9 @@ ON CONFLICT (id) DO UPDATE SET
     file_size_limit = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Ensure RLS is enabled on storage.objects
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- storage.objects has RLS enabled by default in Supabase storage extension.
+-- Explicit ALTER TABLE fails in migrations because postgres is not table owner (owned by supabase_storage_admin).
+-- ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 -- ── 2. Drop Any Pre-Existing SaloneMarket Storage Policies ────────────────────
 
