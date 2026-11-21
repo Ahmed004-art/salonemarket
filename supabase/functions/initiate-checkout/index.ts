@@ -3,6 +3,33 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { createAdminClient } from '../_shared/supabase_client.ts'
 import { getAuthenticatedUser, getUserProfile, requireRole } from '../_shared/auth.ts'
 
+// ---------------------------------------------------------------------------
+// UUID v4 validation regex
+// ---------------------------------------------------------------------------
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isValidUUID(value: unknown): value is string {
+  return typeof value === 'string' && UUID_REGEX.test(value)
+}
+
+// ---------------------------------------------------------------------------
+// Generate a UUID v4 using the Web Crypto API (available in Deno)
+// ---------------------------------------------------------------------------
+function generateUUIDv4(): string {
+  return crypto.randomUUID()
+}
+
+// ---------------------------------------------------------------------------
+// Helper: return a 400 JSON response without touching the database
+// ---------------------------------------------------------------------------
+function badRequest(message: string): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status: 400,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -22,165 +49,141 @@ serve(async (req) => {
       .single()
 
     if (!cart || !cart.cart_items?.length) {
-      return new Response(JSON.stringify({ error: 'Cart is empty' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return badRequest('Cart is empty')
     }
 
-    // 2. Parse body for optional fields
+    // 2. Parse body
     let shippingAddressId: string | null = null
     let notes: string | null = null
+    // Client-supplied idempotency key (UUID v4). If absent or invalid, the
+    // server generates one so every request is idempotency-safe.
+    let clientIdempotencyKey: string | null = null
+
     try {
       const body = await req.json()
       shippingAddressId = body?.shipping_address_id ?? null
       notes = body?.notes ?? null
+      const rawKey = body?.idempotency_key ?? null
+      // Accept client key only if it is a valid UUID v4
+      if (isValidUUID(rawKey)) {
+        clientIdempotencyKey = rawKey
+      }
     } catch {
-      // body is optional
+      // body is optional — all fields stay null
     }
 
-    // 3. Validate all items
+    // Resolve final idempotency key: prefer client-supplied; fall back to
+    // a server-generated UUID.  Using a server-generated key when the client
+    // doesn't send one means a single fresh request won't replay, but a client
+    // that retries the SAME request with the SAME key will get the original result.
+    const idempotencyKey: string = clientIdempotencyKey ?? generateUUIDv4()
+
+    // -------------------------------------------------------------------------
+    // FINDING 1 FIX: Validate shipping_address_id ownership before ANY DB write
+    // -------------------------------------------------------------------------
+    if (shippingAddressId !== null) {
+      // 2a. Reject non-UUID values immediately (no DB round-trip required)
+      if (!isValidUUID(shippingAddressId)) {
+        return badRequest('Invalid shipping address ID format.')
+      }
+
+      // 2b. Confirm address exists AND belongs to the authenticated customer.
+      //     Using the admin client but filtering on profile_id enforces ownership
+      //     independently of RLS (service role bypasses RLS, so we filter explicitly).
+      const { data: ownedAddress, error: addrErr } = await supabase
+        .from('addresses')
+        .select('id')
+        .eq('id', shippingAddressId)
+        .eq('profile_id', user.id)
+        .maybeSingle()
+
+      if (addrErr) {
+        console.error('Address lookup error:', addrErr)
+        return new Response(
+          JSON.stringify({ error: 'Internal server error while validating address.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Address doesn't exist OR belongs to a different customer — reject either way.
+      // We intentionally do NOT distinguish "not found" from "belongs to someone else"
+      // to avoid leaking information about other customers' address UUIDs.
+      if (!ownedAddress) {
+        return badRequest('Shipping address not found or does not belong to your account.')
+      }
+    }
+    // -------------------------------------------------------------------------
+
+    // 3. Validate all items (product active, vendor active, stock sufficient)
     for (const item of cart.cart_items) {
       if (item.products.status !== 'active') {
-        return new Response(
-          JSON.stringify({ error: `Product "${item.products.name}" is no longer available` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+        return badRequest(`Product "${item.products.name}" is no longer available`)
       }
       if (item.vendors.status !== 'active') {
-        return new Response(
-          JSON.stringify({ error: 'Vendor is no longer active' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+        return badRequest('Vendor is no longer active')
       }
       if (item.products.track_inventory && item.products.stock_quantity < item.quantity) {
-        return new Response(
-          JSON.stringify({ error: `Insufficient stock for "${item.products.name}"` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+        return badRequest(`Insufficient stock for "${item.products.name}"`)
       }
     }
 
-    // 4. Group items by vendor
-    const vendorGroups: Record<string, { vendorId: string; commissionRate: number; items: any[] }> = {}
-    for (const item of cart.cart_items) {
-      if (!vendorGroups[item.vendor_id]) {
-        vendorGroups[item.vendor_id] = {
-          vendorId: item.vendor_id,
-          commissionRate: parseFloat(item.vendors.commission_rate),
-          items: [],
-        }
+    // 4. Build the payload required by the atomic RPC (Finding 2 fix)
+    //    Pass cart items as a JSON array; the RPC owns all DB writes inside a transaction.
+    const cartItemsPayload = cart.cart_items.map((item: any) => ({
+      product_id: item.product_id,
+      vendor_id: item.vendor_id,
+      product_name: item.products.name,
+      quantity: item.quantity,
+      // Server-authoritative price: use the live product price, NOT the client-submitted price
+      unit_price: parseFloat(item.products.price),
+      commission_rate: parseFloat(item.vendors.commission_rate),
+      track_inventory: item.products.track_inventory,
+    }))
+
+    // 5. Call the atomic checkout RPC — all order creation, stock decrement, cart
+    //    clearing, and idempotency-key recording happen inside a single PostgreSQL
+    //    transaction.  The 6-argument overload (migration 9) is used so that the
+    //    idempotency key is passed to the database.
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc(
+      'create_checkout_order',
+      {
+        p_customer_id: user.id,
+        p_cart_id: cart.id,
+        p_shipping_address_id: shippingAddressId,
+        p_notes: notes,
+        p_items: cartItemsPayload,
+        p_idempotency_key: idempotencyKey,
       }
-      vendorGroups[item.vendor_id].items.push(item)
-    }
+    )
 
-    // 5. Calculate totals
-    let orderSubtotal = 0
-    const vendorTotals: Array<{
-      vendorId: string
-      subtotal: number
-      commission: number
-      payout: number
-      items: any[]
-    }> = []
-
-    for (const [vendorId, group] of Object.entries(vendorGroups)) {
-      const subtotal = group.items.reduce(
-        (sum, i) => sum + parseFloat(i.unit_price) * i.quantity,
-        0
+    if (rpcErr) {
+      console.error('create_checkout_order RPC error:', rpcErr)
+      // Surface user-friendly messages from RAISE EXCEPTION in the RPC
+      const msg: string = rpcErr.message ?? ''
+      if (
+        msg.includes('Insufficient stock') ||
+        msg.includes('no longer available') ||
+        msg.includes('no longer active')
+      ) {
+        return badRequest(msg)
+      }
+      return new Response(
+        JSON.stringify({ error: 'Internal server error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
-      const commission = Math.round(subtotal * group.commissionRate * 100) / 100
-      const payout = Math.round((subtotal - commission) * 100) / 100
-      orderSubtotal += subtotal
-      vendorTotals.push({
-        vendorId,
-        subtotal: Math.round(subtotal * 100) / 100,
-        commission,
-        payout,
-        items: group.items,
-      })
     }
 
-    const deliveryFee = 0
-    const platformFee = 0
-    const orderTotal = Math.round((orderSubtotal + deliveryFee + platformFee) * 100) / 100
-
-    // 6. Create customer_order
-    const { data: customerOrder, error: orderErr } = await supabase
-      .from('customer_orders')
-      .insert({
-        customer_id: user.id,
-        status: 'pending_payment',
-        subtotal: Math.round(orderSubtotal * 100) / 100,
-        delivery_fee: deliveryFee,
-        platform_fee: platformFee,
-        total: orderTotal,
-        payment_method: 'simulated',
-        payment_status: 'pending',
-        shipping_address_id: shippingAddressId,
-        notes,
-      })
-      .select()
-      .single()
-
-    if (orderErr) throw orderErr
-
-    // 7. Create vendor_orders and order_items
-    const vendorOrderIds: string[] = []
-    for (const vt of vendorTotals) {
-      const { data: vendorOrder, error: voErr } = await supabase
-        .from('vendor_orders')
-        .insert({
-          customer_order_id: customerOrder.id,
-          vendor_id: vt.vendorId,
-          customer_id: user.id,
-          status: 'awaiting_payment',
-          subtotal: vt.subtotal,
-          delivery_fee: 0,
-          commission_amount: vt.commission,
-          vendor_payout: vt.payout,
-        })
-        .select()
-        .single()
-      if (voErr) throw voErr
-      vendorOrderIds.push(vendorOrder.id)
-
-      const itemsToInsert = vt.items.map((item) => ({
-        vendor_order_id: vendorOrder.id,
-        customer_order_id: customerOrder.id,
-        product_id: item.product_id,
-        vendor_id: vt.vendorId,
-        product_name: item.products.name,
-        product_image_url: null,
-        sku: null,
-        quantity: item.quantity,
-        unit_price: parseFloat(item.unit_price),
-        line_total: Math.round(parseFloat(item.unit_price) * item.quantity * 100) / 100,
-      }))
-
-      const { error: itemsErr } = await supabase.from('order_items').insert(itemsToInsert)
-      if (itemsErr) throw itemsErr
-
-      // Decrement stock where tracked
-      for (const item of vt.items) {
-        if (item.products.track_inventory) {
-          await supabase.rpc('decrement_stock', {
-            p_product_id: item.product_id,
-            p_quantity: item.quantity,
-          })
-        }
-      }
-    }
-
-    // 8. Clear cart items
-    await supabase.from('cart_items').delete().eq('cart_id', cart.id)
-
+    // rpcResult is the JSON object returned by the function
     return new Response(
       JSON.stringify({
         success: true,
-        customer_order_id: customerOrder.id,
-        vendor_order_ids: vendorOrderIds,
-        total: orderTotal,
+        customer_order_id: rpcResult.customer_order_id,
+        vendor_order_ids: rpcResult.vendor_order_ids,
+        total: rpcResult.total,
+        // Expose the key so the Flutter client can store it for retries
+        idempotency_key: idempotencyKey,
+        // Present only on a replay — Flutter can use this to surface a friendly message
+        ...(rpcResult.idempotent_replay ? { idempotent_replay: true } : {}),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

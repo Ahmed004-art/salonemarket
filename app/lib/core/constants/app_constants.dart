@@ -12,20 +12,16 @@ class AppConstants {
   /// or loaded from JSON via --dart-define-from-file=../supabase.dev.json
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: String.fromEnvironment(
-      'FLUTTER_SUPABASE_URL',
-      defaultValue: '',
-    ),
+    // ignore: avoid_redundant_argument_values
+    defaultValue: String.fromEnvironment('FLUTTER_SUPABASE_URL'),
   );
 
   /// Injected at build time via --dart-define=SUPABASE_ANON_KEY=...
   /// or loaded from JSON via --dart-define-from-file=../supabase.dev.json
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: String.fromEnvironment(
-      'FLUTTER_SUPABASE_ANON_KEY',
-      defaultValue: '',
-    ),
+    // ignore: avoid_redundant_argument_values
+    defaultValue: String.fromEnvironment('FLUTTER_SUPABASE_ANON_KEY'),
   );
 
   /// Whether valid Supabase credentials have been injected at compile time.

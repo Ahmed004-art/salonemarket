@@ -176,12 +176,12 @@ class SaloneMarketTheme {
         ),
 
         // ── Card ──────────────────────────────────────────────────────────
-        cardTheme: CardTheme(
+        cardTheme: const CardThemeData(
           color: cardBackground,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: const BorderSide(color: border, width: 1),
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+            side: BorderSide(color: border, width: 1),
           ),
           margin: EdgeInsets.zero,
         ),

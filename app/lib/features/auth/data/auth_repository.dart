@@ -58,11 +58,37 @@ class UserProfile {
 /// [AuthSuccess] and [AuthFailure] without catching exceptions.
 class AuthRepository {
   AuthRepository({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+      : _client = client;
 
-  final SupabaseClient _client;
+  final SupabaseClient? _client;
 
-  GoTrueClient get _auth => _client.auth;
+  SupabaseClient get _effectiveClient =>
+      _client ?? Supabase.instance.client;
+
+  GoTrueClient get _auth => _effectiveClient.auth;
+
+  // ── Session & User Accessors ──────────────────────────────────────────────
+
+  /// The currently signed-in [User], or `null` if no active session.
+  User? get currentUser {
+    try {
+      return _auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The active [Session], or `null` if unauthenticated.
+  Session? get currentSession {
+    try {
+      return _auth.currentSession;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether there is an active authenticated session.
+  bool get isAuthenticated => currentUser != null;
 
   // ── Authentication ───────────────────────────────────────────────────────
 
@@ -74,18 +100,27 @@ class AuthRepository {
     required String email,
     required String password,
     String? fullName,
+    String? phone,
   }) async {
     try {
+      final metadata = <String, dynamic>{};
+      if (fullName != null && fullName.isNotEmpty) {
+        metadata['full_name'] = fullName;
+      }
+      if (phone != null && phone.isNotEmpty) {
+        metadata['phone'] = phone;
+      }
+
       final response = await _auth.signUp(
-        email: email,
+        email: email.trim(),
         password: password,
-        data: fullName != null ? {'full_name': fullName} : null,
+        data: metadata.isNotEmpty ? metadata : null,
       );
       return AuthSuccess(response);
     } on AuthException catch (e) {
-      return AuthFailure(e.message);
+      return AuthFailure(_mapAuthErrorMessage(e.message));
     } catch (e) {
-      return AuthFailure('Unexpected error: $e');
+      return AuthFailure('Unexpected error occurred: $e');
     }
   }
 
@@ -96,26 +131,60 @@ class AuthRepository {
   }) async {
     try {
       final response = await _auth.signInWithPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
       return AuthSuccess(response);
     } on AuthException catch (e) {
-      return AuthFailure(e.message);
+      return AuthFailure(_mapAuthErrorMessage(e.message));
     } catch (e) {
-      return AuthFailure('Unexpected error: $e');
+      return AuthFailure('Unexpected error occurred: $e');
     }
   }
 
-  /// Signs out the current user.
+  /// Signs out the current user and clears the session.
   Future<AuthResult<void>> signOut() async {
     try {
       await _auth.signOut();
       return const AuthSuccess(null);
     } on AuthException catch (e) {
-      return AuthFailure(e.message);
+      return AuthFailure(_mapAuthErrorMessage(e.message));
     } catch (e) {
-      return AuthFailure('Unexpected error: $e');
+      return AuthFailure('Unexpected error occurred: $e');
+    }
+  }
+
+  /// Sends a password-reset email to [email].
+  Future<AuthResult<void>> resetPasswordForEmail({
+    required String email,
+    String? redirectTo,
+  }) async {
+    try {
+      await _auth.resetPasswordForEmail(
+        email.trim(),
+        redirectTo: redirectTo,
+      );
+      return const AuthSuccess(null);
+    } on AuthException catch (e) {
+      return AuthFailure(_mapAuthErrorMessage(e.message));
+    } catch (e) {
+      return AuthFailure('Unexpected error occurred: $e');
+    }
+  }
+
+  /// Updates the currently signed-in user's password.
+  Future<AuthResult<UserResponse>> updatePassword({
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+      return AuthSuccess(response);
+    } on AuthException catch (e) {
+      return AuthFailure(_mapAuthErrorMessage(e.message));
+    } catch (e) {
+      return AuthFailure('Unexpected error occurred: $e');
     }
   }
 
@@ -126,7 +195,7 @@ class AuthRepository {
   /// Returns [AuthFailure] when the row is not found or on network error.
   Future<AuthResult<UserProfile>> getUserProfile(String userId) async {
     try {
-      final data = await _client
+      final data = await _effectiveClient
           .from('profiles')
           .select()
           .eq('id', userId)
@@ -135,14 +204,37 @@ class AuthRepository {
     } on PostgrestException catch (e) {
       return AuthFailure(e.message);
     } catch (e) {
-      return AuthFailure('Unexpected error: $e');
+      return AuthFailure('Unexpected error occurred: $e');
     }
   }
 
   // ── Auth state stream ────────────────────────────────────────────────────
 
   /// Emits [AuthState] events whenever the user signs in or out.
-  ///
-  /// Subscribe to this in your top-level provider or bloc.
   Stream<AuthState> watchAuthState() => _auth.onAuthStateChange;
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  /// Converts technical Supabase error strings into friendly user messages.
+  static String _mapAuthErrorMessage(String rawMessage) {
+    final lower = rawMessage.toLowerCase();
+    if (lower.contains('invalid login credentials') ||
+        lower.contains('invalid email or password')) {
+      return 'Incorrect email or password. Please verify and try again.';
+    }
+    if (lower.contains('user already registered') ||
+        lower.contains('already in use')) {
+      return 'An account with this email address already exists.';
+    }
+    if (lower.contains('email not confirmed')) {
+      return 'Please verify your email address before signing in.';
+    }
+    if (lower.contains('password should be at least')) {
+      return 'Password must be at least 8 characters long.';
+    }
+    if (lower.contains('rate limit')) {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+    return rawMessage;
+  }
 }
