@@ -46,11 +46,14 @@ jobs:
 
       - name: Start Supabase local services & apply migrations
         run: |
-          # 'supabase start' boots PostgreSQL and runs all migrations in supabase/migrations/
-          # sequentially from oldest to newest. Any syntax error, broken dependency,
-          # or constraint failure will cause this step to fail immediately (exit code 1).
-          # --ignore-health-check prevents slow Docker cold-start failures on GitHub runners.
-          supabase start --ignore-health-check
+          set -o pipefail
+          if ! supabase start --debug --ignore-health-check 2>&1 | tee /tmp/supabase_start.log; then
+            echo "### Supabase Start Failed" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -n 100 /tmp/supabase_start.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
 
       - name: Lint database schema
         run: |
