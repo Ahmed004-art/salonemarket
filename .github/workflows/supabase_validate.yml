@@ -7,12 +7,14 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/functions/**'
       - 'supabase/config.toml'
+      - '.github/workflows/supabase_validate.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'supabase/migrations/**'
       - 'supabase/functions/**'
       - 'supabase/config.toml'
+      - '.github/workflows/supabase_validate.yml'
 
 concurrency:
   group: supabase-validate-${{ github.ref }}
