@@ -50,10 +50,8 @@ jobs:
         run: |
           set -o pipefail
           if ! supabase start --debug --ignore-health-check 2>&1 | tee /tmp/supabase_start.log; then
-            echo "### Supabase Start Failed" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -n 100 /tmp/supabase_start.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            ERR=$(tail -n 20 /tmp/supabase_start.log | tr '\n' ' ' | head -c 1000)
+            echo "::error file=supabase/config.toml,line=1::$ERR"
             exit 1
           fi
 
