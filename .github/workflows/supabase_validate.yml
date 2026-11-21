@@ -39,7 +39,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: v2.stable
+          version: latest
 
       - name: Verify Supabase CLI installation
         run: supabase --version
@@ -60,4 +60,4 @@ jobs:
 
       - name: Stop Supabase local services
         if: always()
-        run: supabase stop --no-backup
+        run: supabase stop --no-backup || true
