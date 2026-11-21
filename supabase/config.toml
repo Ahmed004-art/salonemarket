@@ -29,3 +29,6 @@ enabled = true
 site_url = "http://localhost:3000"
 jwt_expiry = 3600
 enable_signup = true
+
+[realtime]
+enabled = false
