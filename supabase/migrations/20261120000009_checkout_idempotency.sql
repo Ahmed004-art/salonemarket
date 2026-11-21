@@ -1,6 +1,7 @@
 -- ============================================================
 -- SaloneMarket: Checkout Idempotency
 -- Migration: 20261120000009_checkout_idempotency.sql
+-- CI: Supabase CLI v2.stable, timeout 20m, --ignore-health-check
 --
 -- PURPOSE
 --   Prevents duplicate orders when a client retries a checkout

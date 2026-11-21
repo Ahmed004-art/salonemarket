@@ -22,7 +22,7 @@ jobs:
   validate-migrations:
     name: Validate Migrations & SQL Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -39,7 +39,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: 2.6.8
+          version: v2.stable
 
       - name: Verify Supabase CLI installation
         run: supabase --version
@@ -49,6 +49,7 @@ jobs:
           # 'supabase start' boots PostgreSQL and runs all migrations in supabase/migrations/
           # sequentially from oldest to newest. Any syntax error, broken dependency,
           # or constraint failure will cause this step to fail immediately (exit code 1).
+          # --ignore-health-check prevents slow Docker cold-start failures on GitHub runners.
           supabase start --ignore-health-check
 
       - name: Lint database schema
