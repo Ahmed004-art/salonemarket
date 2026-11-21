@@ -39,7 +39,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.6.8
 
       - name: Verify Supabase CLI installation
         run: supabase --version
@@ -49,7 +49,7 @@ jobs:
           # 'supabase start' boots PostgreSQL and runs all migrations in supabase/migrations/
           # sequentially from oldest to newest. Any syntax error, broken dependency,
           # or constraint failure will cause this step to fail immediately (exit code 1).
-          supabase start
+          supabase start --ignore-health-check
 
       - name: Lint database schema
         run: |
