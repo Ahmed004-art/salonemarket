@@ -36,6 +36,8 @@ desktop.ini
 
 # --- Flutter/Dart (root level) ---
 .dart_tool/
+app/.localappdata/
+scratch/
 
 # --- Coverage ---
 coverage/

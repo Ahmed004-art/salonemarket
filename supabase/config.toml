@@ -32,3 +32,6 @@ enable_signup = true
 
 [realtime]
 enabled = false
+
+[functions.monime-webhook]
+verify_jwt = false

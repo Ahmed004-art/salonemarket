@@ -27,30 +27,56 @@ ALTER TABLE public.wishlists         ENABLE ROW LEVEL SECURITY;
 -- Helper: is_admin() inline check used in multiple policies
 -- A stable function avoids repeating the subquery everywhere.
 -- ============================================================
+-- ============================================================
+-- IMPORTANT: These MUST be LANGUAGE plpgsql (NOT sql) to prevent
+-- PostgreSQL query planner from inlining them into RLS policies.
+-- If inlined, is_admin() on the profiles table triggers the
+-- profiles_select_own_or_admin policy which calls is_admin() again,
+-- causing infinite recursion ERROR 42P17.
+-- LANGUAGE plpgsql + SECURITY DEFINER bypasses RLS inside the function
+-- and prevents inlining entirely.
+-- ============================================================
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-    SELECT EXISTS (
-        SELECT 1 FROM public.profiles
-        WHERE id = auth.uid() AND role = 'admin'
-    );
+DECLARE
+    v_role TEXT;
+    v_uid  UUID := auth.uid();
+BEGIN
+    IF v_uid IS NULL THEN
+        RETURN false;
+    END IF;
+    -- Direct pk lookup bypasses RLS because SECURITY DEFINER
+    SELECT role INTO v_role
+    FROM public.profiles
+    WHERE id = v_uid;
+    RETURN COALESCE(v_role = 'admin', false);
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_vendor()
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-    SELECT EXISTS (
-        SELECT 1 FROM public.profiles
-        WHERE id = auth.uid() AND role = 'vendor'
-    );
+DECLARE
+    v_role TEXT;
+    v_uid  UUID := auth.uid();
+BEGIN
+    IF v_uid IS NULL THEN
+        RETURN false;
+    END IF;
+    SELECT role INTO v_role
+    FROM public.profiles
+    WHERE id = v_uid;
+    RETURN COALESCE(v_role = 'vendor', false);
+END;
 $$;
 
 -- ============================================================

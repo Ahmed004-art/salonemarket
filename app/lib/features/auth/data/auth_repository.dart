@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ── Result type ────────────────────────────────────────────────────────────
@@ -120,7 +121,7 @@ class AuthRepository {
     } on AuthException catch (e) {
       return AuthFailure(_mapAuthErrorMessage(e.message));
     } catch (e) {
-      return AuthFailure('Unexpected error occurred: $e');
+      return AuthFailure(_mapGenericErrorMessage(e));
     }
   }
 
@@ -138,7 +139,7 @@ class AuthRepository {
     } on AuthException catch (e) {
       return AuthFailure(_mapAuthErrorMessage(e.message));
     } catch (e) {
-      return AuthFailure('Unexpected error occurred: $e');
+      return AuthFailure(_mapGenericErrorMessage(e));
     }
   }
 
@@ -150,7 +151,7 @@ class AuthRepository {
     } on AuthException catch (e) {
       return AuthFailure(_mapAuthErrorMessage(e.message));
     } catch (e) {
-      return AuthFailure('Unexpected error occurred: $e');
+      return AuthFailure(_mapGenericErrorMessage(e));
     }
   }
 
@@ -168,7 +169,7 @@ class AuthRepository {
     } on AuthException catch (e) {
       return AuthFailure(_mapAuthErrorMessage(e.message));
     } catch (e) {
-      return AuthFailure('Unexpected error occurred: $e');
+      return AuthFailure(_mapGenericErrorMessage(e));
     }
   }
 
@@ -184,11 +185,65 @@ class AuthRepository {
     } on AuthException catch (e) {
       return AuthFailure(_mapAuthErrorMessage(e.message));
     } catch (e) {
-      return AuthFailure('Unexpected error occurred: $e');
+      return AuthFailure(_mapGenericErrorMessage(e));
     }
   }
 
   // ── Profile ──────────────────────────────────────────────────────────────
+
+  /// Updates the `profiles` row for [userId].
+  Future<AuthResult<UserProfile>> updateUserProfile({
+    required String userId,
+    required String fullName,
+    String? phone,
+    String? avatarUrl,
+  }) async {
+    try {
+      final updates = <String, dynamic>{
+        'full_name': fullName,
+        'phone': phone,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (avatarUrl != null) {
+        updates['avatar_url'] = avatarUrl;
+      }
+      final data = await _effectiveClient
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId)
+          .select()
+          .single();
+      return AuthSuccess(UserProfile.fromMap(data));
+    } on PostgrestException catch (e) {
+      return AuthFailure(e.message);
+    } catch (e) {
+      return AuthFailure(_mapGenericErrorMessage(e));
+    }
+  }
+
+  /// Uploads avatar image bytes to the 'avatars' storage bucket and returns its public URL.
+  Future<String?> uploadAvatar({
+    required String userId,
+    required Uint8List bytes,
+    required String fileExtension,
+  }) async {
+    try {
+      final ext = fileExtension.replaceAll('.', '').toLowerCase();
+      final fileName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final mime = ext == 'png' ? 'image/png' : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
+      await _effectiveClient.storage.from('avatars').uploadBinary(
+        fileName,
+        bytes,
+        fileOptions: FileOptions(
+          contentType: mime,
+          upsert: true,
+        ),
+      );
+      return _effectiveClient.storage.from('avatars').getPublicUrl(fileName);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Fetches the `profiles` row for [userId].
   ///
@@ -204,7 +259,7 @@ class AuthRepository {
     } on PostgrestException catch (e) {
       return AuthFailure(e.message);
     } catch (e) {
-      return AuthFailure('Unexpected error occurred: $e');
+      return AuthFailure(_mapGenericErrorMessage(e));
     }
   }
 
@@ -236,5 +291,18 @@ class AuthRepository {
       return 'Too many attempts. Please wait a moment and try again.';
     }
     return rawMessage;
+  }
+
+  /// Converts low-level network and system errors into friendly user messages.
+  static String _mapGenericErrorMessage(Object error) {
+    final str = error.toString().toLowerCase();
+    if (str.contains('socketexception') ||
+        str.contains('failed host lookup') ||
+        str.contains('no address associated with hostname') ||
+        str.contains('network') ||
+        str.contains('clientexception')) {
+      return 'Unable to connect to SaloneMarket servers. Please check your internet connection and try again.';
+    }
+    return 'Unexpected error occurred: $error';
   }
 }

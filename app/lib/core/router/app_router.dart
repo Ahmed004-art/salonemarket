@@ -8,17 +8,45 @@ import '../../features/address/presentation/screens/saved_addresses_screen.dart'
 import '../../features/auth/presentation/controllers/auth_notifier.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
+import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/verify_email_screen.dart';
 import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
 import '../../features/checkout/data/models/checkout_result_model.dart';
 import '../../features/checkout/presentation/screens/checkout_screen.dart';
 import '../../features/checkout/presentation/screens/order_confirmation_screen.dart';
+import '../../features/marketplace/data/models/product_model.dart';
 import '../../features/marketplace/presentation/screens/home_screen.dart';
 import '../../features/marketplace/presentation/screens/product_catalog_screen.dart';
 import '../../features/marketplace/presentation/screens/product_details_screen.dart';
+import '../../features/payment/presentation/screens/receipt_screen.dart';
+import '../../features/vendor/presentation/screens/vendor_apply_screen.dart';
+import '../../features/vendor/presentation/screens/vendor_dashboard_screen.dart';
+import '../../features/vendor/presentation/screens/vendor_order_detail_screen.dart';
+import '../../features/vendor/presentation/screens/vendor_orders_screen.dart';
+import '../../features/vendor/presentation/screens/vendor_product_form_screen.dart';
+import '../../features/vendor/presentation/screens/vendor_products_screen.dart';
+import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/screens/admin_orders_screen.dart';
+import '../../features/admin/presentation/screens/admin_payouts_screen.dart';
+import '../../features/admin/presentation/screens/admin_products_screen.dart';
+import '../../features/admin/presentation/screens/admin_transactions_screen.dart';
+import '../../features/admin/presentation/screens/admin_users_screen.dart';
+import '../../features/admin/presentation/screens/admin_vendors_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/orders/data/models/customer_order_model.dart';
+import '../../features/orders/presentation/screens/customer_order_detail_screen.dart';
+import '../../features/orders/presentation/screens/customer_orders_screen.dart';
+import '../../features/orders/presentation/screens/order_tracking_screen.dart';
+import '../../features/profile/presentation/screens/feedback_screen.dart';
+import '../../features/profile/presentation/screens/profile_edit_screen.dart';
+import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/settings_screen.dart';
+import '../../features/vendor/presentation/screens/vendor_payouts_screen.dart';
+import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
 import '../constants/app_constants.dart';
 
 // ── Route path constants ───────────────────────────────────────────────────
@@ -30,6 +58,8 @@ class Routes {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   static const String splash = '/';
+  static const String onboarding = '/onboarding';
+  static const String welcome = '/welcome';
   static const String login = '/login';
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
@@ -68,6 +98,7 @@ class Routes {
   static const String addressEdit = '/profile/addresses/:addressId';
   static const String notifications = '/notifications';
   static const String settings = '/settings';
+  static const String feedback = '/profile/feedback';
 
   // ── Vendor portal ─────────────────────────────────────────────────────────
   static const String vendorDashboard = '/vendor/dashboard';
@@ -79,6 +110,7 @@ class Routes {
   static const String vendorShopSettings = '/vendor/settings';
   static const String vendorAnalytics = '/vendor/analytics';
   static const String vendorApplication = '/vendor/apply';
+  static const String vendorPayouts = '/vendor/payouts';
 
   // ── Admin portal ──────────────────────────────────────────────────────────
   static const String adminDashboard = '/admin/dashboard';
@@ -88,6 +120,8 @@ class Routes {
   static const String adminVendorDetail = '/admin/vendors/:vendorId';
   static const String adminProducts = '/admin/products';
   static const String adminOrders = '/admin/orders';
+  static const String adminTransactions = '/admin/transactions';
+  static const String adminPayouts = '/admin/payouts';
   static const String adminSettings = '/admin/settings';
 
   // ── Misc ──────────────────────────────────────────────────────────────────
@@ -154,6 +188,14 @@ class AppRouter {
         // ── Auth ────────────────────────────────────────────────────────────
         GoRoute(
           path: Routes.splash,
+          builder: (context, state) => const SplashScreen(),
+        ),
+        GoRoute(
+          path: Routes.onboarding,
+          builder: (context, state) => const OnboardingScreen(),
+        ),
+        GoRoute(
+          path: Routes.welcome,
           builder: (context, state) => const WelcomeScreen(),
         ),
         GoRoute(
@@ -196,13 +238,11 @@ class AppRouter {
         ),
         GoRoute(
           path: Routes.orders,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.orders),
+          builder: (context, state) => const CustomerOrdersScreen(),
         ),
         GoRoute(
           path: Routes.profile,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.profile),
+          builder: (context, state) => const ProfileScreen(),
         ),
         GoRoute(
           path: Routes.categories,
@@ -232,8 +272,7 @@ class AppRouter {
         ),
         GoRoute(
           path: Routes.wishlist,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.wishlist),
+          builder: (context, state) => const WishlistScreen(),
         ),
 
         // ── Customer — checkout ──────────────────────────────────────────────
@@ -265,25 +304,28 @@ class AppRouter {
         ),
         GoRoute(
           path: Routes.orderDetail,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.orderDetail),
+          builder: (context, state) => CustomerOrderDetailScreen(
+            orderId: state.pathParameters['orderId'] ?? '',
+          ),
         ),
         GoRoute(
           path: Routes.orderTracking,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.orderTracking),
+          builder: (context, state) => OrderTrackingScreen(
+            orderId: state.pathParameters['orderId'] ?? '',
+            initialOrder: state.extra as CustomerOrder?,
+          ),
         ),
         GoRoute(
           path: Routes.receipt,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.receipt),
+          builder: (context, state) => ReceiptScreen(
+            orderId: state.pathParameters['orderId'] ?? '',
+          ),
         ),
 
         // ── Customer — account ───────────────────────────────────────────────
         GoRoute(
           path: Routes.profileEdit,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.profileEdit),
+          builder: (context, state) => const ProfileEditScreen(),
         ),
         GoRoute(
           path: Routes.addresses,
@@ -301,97 +343,101 @@ class AppRouter {
         ),
         GoRoute(
           path: Routes.notifications,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.notifications),
+          builder: (context, state) => const NotificationsScreen(),
         ),
         GoRoute(
           path: Routes.settings,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.settings),
+          builder: (context, state) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: Routes.feedback,
+          builder: (context, state) => FeedbackScreen(
+            initialOrderId: state.uri.queryParameters['orderId'],
+          ),
         ),
 
         // ── Vendor portal ────────────────────────────────────────────────────
         GoRoute(
           path: Routes.vendorDashboard,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorDashboard),
+          builder: (context, state) => const VendorDashboardScreen(),
         ),
         GoRoute(
           path: Routes.vendorOrders,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorOrders),
+          builder: (context, state) => const VendorOrdersScreen(),
         ),
         GoRoute(
           path: Routes.vendorOrderDetail,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorOrderDetail),
+          builder: (context, state) => VendorOrderDetailScreen(
+            vendorOrderId: state.pathParameters['vendorOrderId'] ?? '',
+          ),
         ),
         GoRoute(
           path: Routes.vendorProducts,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorProducts),
+          builder: (context, state) => const VendorProductsScreen(),
         ),
         GoRoute(
           path: Routes.vendorProductCreate,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorProductCreate),
+          builder: (context, state) => const VendorProductFormScreen(),
         ),
         GoRoute(
           path: Routes.vendorProductEdit,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorProductEdit),
+          builder: (context, state) => VendorProductFormScreen(
+            existingProduct: state.extra as Product?,
+          ),
         ),
         GoRoute(
           path: Routes.vendorShopSettings,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorShopSettings),
+          builder: (context, state) => const VendorApplyScreen(),
         ),
         GoRoute(
           path: Routes.vendorAnalytics,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorAnalytics),
+          builder: (context, state) => const VendorDashboardScreen(),
         ),
         GoRoute(
           path: Routes.vendorApplication,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.vendorApplication),
+          builder: (context, state) => const VendorApplyScreen(),
+        ),
+        GoRoute(
+          path: Routes.vendorPayouts,
+          builder: (context, state) => const VendorPayoutsScreen(),
         ),
 
         // ── Admin portal ─────────────────────────────────────────────────────
         GoRoute(
           path: Routes.adminDashboard,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.adminDashboard),
+          builder: (context, state) => const AdminDashboardScreen(),
         ),
         GoRoute(
           path: Routes.adminUsers,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.adminUsers),
+          builder: (context, state) => const AdminUsersScreen(),
         ),
         GoRoute(
           path: Routes.adminUserDetail,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.adminUserDetail),
+          builder: (context, state) => const AdminUsersScreen(),
         ),
         GoRoute(
           path: Routes.adminVendors,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.adminVendors),
+          builder: (context, state) => const AdminVendorsScreen(),
         ),
         GoRoute(
           path: Routes.adminVendorDetail,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.adminVendorDetail),
+          builder: (context, state) => const AdminVendorsScreen(),
         ),
         GoRoute(
           path: Routes.adminProducts,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.adminProducts),
+          builder: (context, state) => const AdminProductsScreen(),
         ),
         GoRoute(
           path: Routes.adminOrders,
-          builder: (context, state) =>
-              const _PlaceholderScreen(routePath: Routes.adminOrders),
+          builder: (context, state) => const AdminOrdersScreen(),
+        ),
+        GoRoute(
+          path: Routes.adminTransactions,
+          builder: (context, state) => const AdminTransactionsScreen(),
+        ),
+        GoRoute(
+          path: Routes.adminPayouts,
+          builder: (context, state) => const AdminPayoutsScreen(),
         ),
         GoRoute(
           path: Routes.adminSettings,
@@ -413,6 +459,8 @@ class AppRouter {
 
   static final _publicRoutes = {
     Routes.splash,
+    Routes.onboarding,
+    Routes.welcome,
     Routes.login,
     Routes.register,
     Routes.forgotPassword,
@@ -437,6 +485,7 @@ class AppRouter {
     Routes.vendorProductEdit,
     Routes.vendorShopSettings,
     Routes.vendorAnalytics,
+    Routes.vendorPayouts,
   };
 
   static final _adminRoutes = {
@@ -447,6 +496,8 @@ class AppRouter {
     Routes.adminVendorDetail,
     Routes.adminProducts,
     Routes.adminOrders,
+    Routes.adminTransactions,
+    Routes.adminPayouts,
     Routes.adminSettings,
   };
 
@@ -460,43 +511,59 @@ class AppRouter {
     GoRouterState state,
     AuthNotifier? notifier,
   ) {
-    final isLoggedIn = notifier != null
-        ? notifier.isAuthenticated
-        : (AppConstants.isSupabaseConfigured
-            ? Supabase.instance.client.auth.currentSession != null
-            : false);
-    final location = state.matchedLocation;
+    // ── Determine logged-in status ──────────────────────────────────────────
+    // Always use the live Supabase session as the source of truth for
+    // "is there a session?".  This survives profile-reload transients where
+    // notifier.isAuthenticated might momentarily be false while _status ==
+    // AuthStatus.loading.
+    final hasSupabaseSession = AppConstants.isSupabaseConfigured
+        ? Supabase.instance.client.auth.currentSession != null
+        : false;
 
+    final isLoggedIn = notifier != null
+        ? (notifier.isAuthenticated ||
+            notifier.currentUserId != null ||
+            hasSupabaseSession)
+        : hasSupabaseSession;
+
+    final location = state.matchedLocation;
     final isPublic = _publicRoutes.contains(location);
 
     if (!isLoggedIn && !isPublic) return Routes.login;
 
-    // Authenticated users should not see auth screens (welcome, login, register, forgot/reset password)
+    // Authenticated users should not see auth screens
     final isAuthScreen = {
       Routes.splash,
+      Routes.onboarding,
+      Routes.welcome,
       Routes.login,
       Routes.register,
       Routes.forgotPassword,
       Routes.resetPassword,
     }.contains(location);
 
-    if (isLoggedIn && isAuthScreen) {
-      return Routes.home;
-    }
+    if (isLoggedIn && isAuthScreen) return Routes.home;
 
-    // Role-based guards
+    // ── Role-based guards ───────────────────────────────────────────────────
+    // CRITICAL: Never redirect while the profile is still loading.
+    // The profile load is async; during that window isAdmin/isVendor are
+    // false even for real admins/vendors.  We only redirect once we have a
+    // resolved profile (profile != null) and the status is not loading.
+    final profileReady =
+        notifier != null && notifier.profile != null && !notifier.isLoading;
+
     if (_vendorRoutes.contains(location)) {
       if (!isLoggedIn) return Routes.login;
-      if (notifier != null && !notifier.isVendor && !notifier.isAdmin) {
-        return Routes.home;
-      }
+      // Wait until profile is fully loaded before making role decisions.
+      if (!profileReady) return null;
+      if (!notifier!.isVendor && !notifier.isAdmin) return Routes.home;
     }
 
     if (_adminRoutes.contains(location)) {
       if (!isLoggedIn) return Routes.login;
-      if (notifier != null && !notifier.isAdmin) {
-        return Routes.home;
-      }
+      // Wait until profile is fully loaded before making role decisions.
+      if (!profileReady) return null;
+      if (!notifier!.isAdmin) return Routes.home;
     }
 
     return null; // no redirect

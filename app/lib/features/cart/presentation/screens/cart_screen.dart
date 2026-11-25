@@ -20,11 +20,11 @@ class CartScreen extends StatelessWidget {
     final items = cartNotifier.items.values.toList();
 
     return Scaffold(
-      backgroundColor: SaloneMarketTheme.surface,
+      backgroundColor: SaloneColors.background,
       appBar: AppBar(
         title: Text(
           'Shopping Cart (${cartNotifier.itemCount})',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.manrope(
             fontWeight: FontWeight.w700,
             fontSize: 18,
           ),

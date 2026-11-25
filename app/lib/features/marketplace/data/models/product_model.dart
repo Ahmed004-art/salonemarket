@@ -171,6 +171,9 @@ class Product {
     return primary.url;
   }
 
+  /// Alias for primaryImageUrl for compatibility.
+  String? get imageUrl => primaryImageUrl;
+
   /// Whether the product is currently in stock.
   bool get isInStock => !trackInventory || stockQuantity > 0;
 

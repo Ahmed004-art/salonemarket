@@ -10,11 +10,25 @@ class AppConstants {
 
   /// Injected at build time via --dart-define=SUPABASE_URL=https://...
   /// or loaded from JSON via --dart-define-from-file=../supabase.dev.json
-  static const String supabaseUrl = String.fromEnvironment(
+  static const String _rawSupabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
     // ignore: avoid_redundant_argument_values
     defaultValue: String.fromEnvironment('FLUTTER_SUPABASE_URL'),
   );
+
+  /// Base URL for Supabase, automatically sanitized to remove any accidental trailing paths.
+  static String get supabaseUrl {
+    var url = _rawSupabaseUrl.trim();
+    if (url.endsWith('/rest/v1/')) {
+      url = url.substring(0, url.length - '/rest/v1/'.length);
+    } else if (url.endsWith('/rest/v1')) {
+      url = url.substring(0, url.length - '/rest/v1'.length);
+    }
+    if (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    return url;
+  }
 
   /// Injected at build time via --dart-define=SUPABASE_ANON_KEY=...
   /// or loaded from JSON via --dart-define-from-file=../supabase.dev.json

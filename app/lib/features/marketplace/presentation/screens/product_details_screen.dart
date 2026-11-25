@@ -8,11 +8,13 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../cart/presentation/controllers/cart_notifier.dart';
+import '../../../wishlist/presentation/controllers/wishlist_notifier.dart';
 import '../../data/models/product_model.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../widgets/empty_state_view.dart';
 import '../widgets/marketplace_app_bar.dart';
 import '../widgets/product_image_gallery.dart';
+import '../widgets/product_review_dialog.dart';
 import '../widgets/quantity_selector.dart';
 
 /// Screen displaying complete details for a single product with cart interaction.
@@ -186,15 +188,39 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
 
-                  // Product Title
-                  Text(
-                    product.name,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: SaloneMarketTheme.primary,
-                      height: 1.25,
-                    ),
+                  // Product Title & Wishlist Toggle
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          product.name,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: SaloneMarketTheme.primary,
+                            height: 1.25,
+                          ),
+                        ),
+                      ),
+                      Consumer<WishlistNotifier>(
+                        builder: (context, wishlist, _) {
+                          final isFav = wishlist.isProductWishlisted(product.id);
+                          return IconButton(
+                            icon: Icon(
+                              isFav ? Icons.favorite : Icons.favorite_border,
+                              color: isFav ? Colors.red : SaloneMarketTheme.muted,
+                            ),
+                            tooltip: isFav
+                                ? 'Remove from wishlist'
+                                : 'Add to wishlist',
+                            onPressed: () {
+                              wishlist.toggleWishlist(product.id);
+                            },
+                          );
+                        },
+                      ),
+                    ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
 
@@ -269,6 +295,61 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       color: SaloneMarketTheme.muted,
                       height: 1.55,
                     ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Customer Reviews & Ratings
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Verified Reviews',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: SaloneMarketTheme.primary,
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.rate_review_outlined, size: 16),
+                        label: const Text('Write Review'),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => ProductReviewDialog(
+                              productId: product.id,
+                              productName: product.name,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 20),
+                      const SizedBox(width: 4),
+                      Text(
+                        product.ratingAvg > 0
+                            ? product.ratingAvg.toStringAsFixed(1)
+                            : 'No ratings yet',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (product.ratingCount > 0) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          '(${product.ratingCount} verified ratings)',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            color: SaloneMarketTheme.muted,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: AppSpacing.xxl),
                 ],

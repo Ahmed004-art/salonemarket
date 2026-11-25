@@ -7,11 +7,13 @@ import 'package:provider/provider.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/salone_motion.dart';
+import '../../../../core/widgets/salone_states.dart';
 import '../../../cart/presentation/controllers/cart_notifier.dart';
 import '../../data/models/product_model.dart';
 
-/// Standard product display card conforming to SaloneMarket design rules.
-class ProductCard extends StatelessWidget {
+/// Standard product display card with press feedback, Hero image, and quick-add.
+class ProductCard extends StatefulWidget {
   const ProductCard({
     super.key,
     required this.product,
@@ -22,202 +24,205 @@ class ProductCard extends StatelessWidget {
   final bool compact;
 
   @override
+  State<ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<ProductCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final product = widget.product;
+    final reduce = SaloneMotion.reduceMotion(context);
+
     return GestureDetector(
-      onTap: () {
-        context.push('/products/${product.id}');
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: SaloneMarketTheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: SaloneMarketTheme.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image with badges
-            Expanded(
-              flex: 5,
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(7),
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: double.infinity,
-                      child: product.primaryImageUrl != null &&
-                              product.primaryImageUrl!.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: product.primaryImageUrl!,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => const ColoredBox(
-                                color: SaloneMarketTheme.background,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor:
-                                          AlwaysStoppedAnimation<Color>(
-                                        SaloneMarketTheme.accent,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) =>
-                                  _buildImageFallback(),
-                            )
-                          : _buildImageFallback(),
-                    ),
-                  ),
-
-                  // Sale badge
-                  if (product.isOnSale)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: SaloneMarketTheme.accent,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '-${product.discountPercentage}%',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: SaloneMarketTheme.onAccent,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Low stock badge
-                  if (product.isLowStock)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: SaloneMarketTheme.error.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Only ${product.stockQuantity} left',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // Product Details
-            Expanded(
-              flex: 5,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      onTapDown: reduce ? null : (_) => setState(() => _pressed = true),
+      onTapUp: reduce ? null : (_) => setState(() => _pressed = false),
+      onTapCancel: reduce ? null : () => setState(() => _pressed = false),
+      onTap: () => context.push('/products/${product.id}'),
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1.0,
+        duration: SaloneMotion.fast,
+        curve: SaloneMotion.easeOut,
+        child: Container(
+          decoration: BoxDecoration(
+            color: SaloneColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.large),
+            border: Border.all(color: SaloneColors.border),
+            boxShadow: AppShadows.card,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Product Image
+              Expanded(
+                flex: 5,
+                child: Stack(
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Vendor name
-                        if (product.vendor != null)
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  product.vendor!.shopName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: SaloneMarketTheme.muted,
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(AppRadius.large - 1),
+                      ),
+                      child: Hero(
+                        tag: 'product-${product.id}',
+                        child: Container(
+                          color: SaloneColors.cream.withValues(alpha: 0.45),
+                          width: double.infinity,
+                          height: double.infinity,
+                          child: product.primaryImageUrl != null &&
+                                  product.primaryImageUrl!.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: product.primaryImageUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) =>
+                                      const SaloneShimmerBox(
+                                    height: double.infinity,
+                                    radius: 0,
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 3),
-                              const Icon(
-                                Icons.verified,
-                                size: 12,
-                                color: SaloneMarketTheme.accent,
-                              ),
-                            ],
+                                  errorWidget: (context, url, error) =>
+                                      _buildImageFallback(),
+                                )
+                              : _buildImageFallback(),
+                        ),
+                      ),
+                    ),
+                    if (product.isOnSale)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
                           ),
-                        const SizedBox(height: 2),
-
-                        // Title
-                        Text(
-                          product.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: SaloneMarketTheme.primary,
-                            height: 1.25,
+                          decoration: BoxDecoration(
+                            color: SaloneColors.gold,
+                            borderRadius: BorderRadius.circular(AppRadius.small),
+                          ),
+                          child: Text(
+                            '-${product.discountPercentage}%',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: SaloneColors.textPrimary,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-
-                    // Price and Add button
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (product.compareAtPrice != null)
-                                Text(
-                                  product.formattedCompareAtPrice!,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    decoration: TextDecoration.lineThrough,
-                                    color: SaloneMarketTheme.muted,
-                                  ),
-                                ),
-                              Text(
-                                product.formattedPrice,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: SaloneMarketTheme.primary,
-                                ),
-                              ),
-                            ],
+                      ),
+                    if (product.isLowStock)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: SaloneColors.error.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(AppRadius.small),
+                          ),
+                          child: Text(
+                            'Only ${product.stockQuantity} left',
+                            style: GoogleFonts.inter(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                        _buildQuickAddButton(context),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
-            ),
-          ],
+
+              // Product Details
+              Expanded(
+                flex: 5,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (product.vendor != null)
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    product.vendor!.shopName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: SaloneColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                const Icon(
+                                  Icons.verified_rounded,
+                                  size: 12,
+                                  color: SaloneColors.secondary,
+                                ),
+                              ],
+                            ),
+                          const SizedBox(height: 3),
+                          Text(
+                            product.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.manrope(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: SaloneColors.textPrimary,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (product.compareAtPrice != null)
+                                  Text(
+                                    product.formattedCompareAtPrice!,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      decoration: TextDecoration.lineThrough,
+                                      color: SaloneColors.textSecondary,
+                                    ),
+                                  ),
+                                Text(
+                                  product.formattedPrice,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: SaloneColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _buildQuickAddButton(context, product),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -225,79 +230,73 @@ class ProductCard extends StatelessWidget {
 
   Widget _buildImageFallback() {
     return ColoredBox(
-      color: SaloneMarketTheme.background,
+      color: SaloneColors.cream.withValues(alpha: 0.6),
       child: Center(
         child: Icon(
           Icons.image_outlined,
           size: 32,
-          color: SaloneMarketTheme.muted.withValues(alpha: 0.6),
+          color: SaloneColors.textSecondary.withValues(alpha: 0.5),
         ),
       ),
     );
   }
 
-  Widget _buildQuickAddButton(BuildContext context) {
+  Widget _buildQuickAddButton(BuildContext context, Product product) {
     if (!product.isInStock) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
-          color: SaloneMarketTheme.muted.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(4),
+          color: SaloneColors.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppRadius.small),
         ),
         child: Text(
-          'Out of stock',
-          style: GoogleFonts.dmSans(
+          'Sold out',
+          style: GoogleFonts.inter(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: SaloneMarketTheme.muted,
+            color: SaloneColors.textSecondary,
           ),
         ),
       );
     }
 
-    return InkWell(
-      onTap: () {
-        final added = context.read<CartNotifier>().addItem(product);
-        if (added) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Added ${product.name} to cart',
-                style: GoogleFonts.dmSans(fontSize: 13),
-              ),
-              duration: const Duration(seconds: 2),
-              backgroundColor: SaloneMarketTheme.primary,
-              action: SnackBarAction(
-                label: 'View Cart',
-                textColor: SaloneMarketTheme.accent,
-                onPressed: () => context.push(Routes.cart),
-              ),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Cannot add more of this item (Stock ceiling reached)',
-                style: GoogleFonts.dmSans(fontSize: 13),
-              ),
-              duration: const Duration(seconds: 2),
-              backgroundColor: SaloneMarketTheme.error,
-            ),
-          );
-        }
-      },
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: SaloneMarketTheme.accent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: const Icon(
-          Icons.add_shopping_cart,
-          size: 16,
-          color: SaloneMarketTheme.onAccent,
+    return Material(
+      color: SaloneColors.primary,
+      borderRadius: BorderRadius.circular(AppRadius.medium),
+      child: InkWell(
+        onTap: () {
+          final added = context.read<CartNotifier>().addItem(product);
+          if (added) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text('Added ${product.name} to cart'),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: SaloneColors.primary,
+                  action: SnackBarAction(
+                    label: 'View Cart',
+                    textColor: SaloneColors.gold,
+                    onPressed: () => context.push(Routes.cart),
+                  ),
+                ),
+              );
+          } else {
+            SaloneToast.show(
+              context,
+              'Cannot add more of this item (Stock ceiling reached)',
+              isError: true,
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        child: const Padding(
+          padding: EdgeInsets.all(7),
+          child: Icon(
+            Icons.add_shopping_cart_rounded,
+            size: 16,
+            color: Colors.white,
+          ),
         ),
       ),
     );

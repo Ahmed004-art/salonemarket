@@ -24,6 +24,7 @@ dependencies:
   equatable: ^2.0.5
   uuid: ^4.4.0
   http: ^1.2.1
+  crypto: ^3.0.3
   flutter_animate: ^4.5.0
 
 dev_dependencies:

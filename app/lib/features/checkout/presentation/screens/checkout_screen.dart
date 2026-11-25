@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../address/data/models/address_model.dart';
@@ -23,6 +25,11 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _promoController = TextEditingController();
+  String? _appliedPromoCode;
+  double _promoDiscount = 0.0;
+  bool _isApplyingPromo = false;
+  String? _promoMessage;
 
   @override
   void initState() {
@@ -35,7 +42,75 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _notesController.dispose();
+    _promoController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleApplyPromo(double subtotal) async {
+    final code = _promoController.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() {
+      _isApplyingPromo = true;
+      _promoMessage = null;
+    });
+
+    try {
+      if (AppConstants.isSupabaseConfigured) {
+        final res = await Supabase.instance.client.rpc(
+          'apply_promo_code',
+          params: {
+            'p_code': code,
+            'p_subtotal': subtotal,
+          },
+        );
+
+        final data = res as Map<String, dynamic>;
+        if (data['valid'] == true) {
+          final discount = (data['discount_amount'] as num?)?.toDouble() ?? 0.0;
+          setState(() {
+            _appliedPromoCode = data['code']?.toString() ?? code;
+            _promoDiscount = discount;
+            _promoMessage = data['message']?.toString() ?? 'Promo applied!';
+            _isApplyingPromo = false;
+          });
+        } else {
+          setState(() {
+            _appliedPromoCode = null;
+            _promoDiscount = 0.0;
+            _promoMessage = data['message']?.toString() ?? 'Invalid promo code';
+            _isApplyingPromo = false;
+          });
+        }
+      } else {
+        // Fallback for offline / demo mode
+        if (code.toUpperCase() == 'WELCOME10') {
+          setState(() {
+            _appliedPromoCode = 'WELCOME10';
+            _promoDiscount = (subtotal * 0.1).roundToDouble();
+            _promoMessage = '10% discount applied!';
+            _isApplyingPromo = false;
+          });
+        } else if (code.toUpperCase() == 'SALONE50') {
+          setState(() {
+            _appliedPromoCode = 'SALONE50';
+            _promoDiscount = 50.0;
+            _promoMessage = 'SLE 50 discount applied!';
+            _isApplyingPromo = false;
+          });
+        } else {
+          setState(() {
+            _promoMessage = 'Invalid promo code';
+            _isApplyingPromo = false;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _promoMessage = 'Could not validate promo code';
+        _isApplyingPromo = false;
+      });
+    }
   }
 
   Future<void> _handleChangeAddress() async {
@@ -214,81 +289,165 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── Section 4: Authoritative Order Summary ─────────────────
-                  _buildSectionHeader(title: '4. Order Summary'),
+                  // ── Section 4: Promotion Code ──────────────────────────────
+                  _buildSectionHeader(title: '4. Promotion Code'),
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: SaloneMarketTheme.background,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: SaloneMarketTheme.border),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildSummaryRow(
-                          'Items Subtotal',
-                          cartNotifier.formattedSubtotal,
-                        ),
-                        const SizedBox(height: 10),
-                        _buildSummaryRow(
-                          'Delivery Fee',
-                          'Free',
-                          isPositive: true,
-                        ),
-                        const Divider(height: 24),
-                        _buildSummaryRow(
-                          'Estimated Total',
-                          cartNotifier.formattedSubtotal,
-                          isBold: true,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Prices and stock availability are authoritatively verified by the server during order creation.',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            color: SaloneMarketTheme.muted,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _promoController,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: InputDecoration(
+                            hintText: 'Enter code (e.g. WELCOME10, SALONE50)',
+                            hintStyle: GoogleFonts.dmSans(fontSize: 13),
+                            prefixIcon: const Icon(Icons.discount_outlined),
                           ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _isApplyingPromo
+                            ? null
+                            : () => _handleApplyPromo(cartNotifier.subtotal),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: SaloneMarketTheme.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: _isApplyingPromo
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Apply'),
+                      ),
+                    ],
+                  ),
+                  if (_promoMessage != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _promoMessage!,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _appliedPromoCode != null
+                            ? Colors.green.shade700
+                            : SaloneMarketTheme.error,
+                      ),
                     ),
+                  ],
+                  const SizedBox(height: 24),
+
+                  // ── Section 5: Authoritative Order Summary ─────────────────
+                  _buildSectionHeader(title: '5. Order Summary'),
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (context) {
+                      final subtotal = cartNotifier.subtotal;
+                      final effectiveTotal =
+                          (subtotal - _promoDiscount).clamp(0.0, double.infinity);
+                      final formattedTotal =
+                          effectiveTotal == effectiveTotal.roundToDouble()
+                              ? 'SLE ${effectiveTotal.toInt()}'
+                              : 'SLE ${effectiveTotal.toStringAsFixed(2)}';
+
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: SaloneMarketTheme.background,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: SaloneMarketTheme.border),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildSummaryRow(
+                              'Items Subtotal',
+                              cartNotifier.formattedSubtotal,
+                            ),
+                            if (_appliedPromoCode != null && _promoDiscount > 0) ...[
+                              const SizedBox(height: 10),
+                              _buildSummaryRow(
+                                'Promo Discount ($_appliedPromoCode)',
+                                '-SLE ${_promoDiscount.toStringAsFixed(2)}',
+                                isPositive: true,
+                              ),
+                            ],
+                            const SizedBox(height: 10),
+                            _buildSummaryRow(
+                              'Delivery Fee',
+                              'Free',
+                              isPositive: true,
+                            ),
+                            const Divider(height: 24),
+                            _buildSummaryRow(
+                              'Estimated Total',
+                              formattedTotal,
+                              isBold: true,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Prices and stock availability are authoritatively verified by the server during order creation.',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                color: SaloneMarketTheme.muted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 32),
 
                   // Place Order Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: SaloneMarketTheme.accent,
-                        foregroundColor: SaloneMarketTheme.onAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: (hasUnavailable ||
-                              selectedAddress == null ||
-                              checkoutNotifier.isProcessing)
-                          ? null
-                          : _handlePlaceOrder,
-                      child: checkoutNotifier.isProcessing
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: SaloneMarketTheme.onAccent,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              'Confirm & Place Order (${cartNotifier.formattedSubtotal})',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
+                  Builder(
+                    builder: (context) {
+                      final effectiveTotal = (cartNotifier.subtotal - _promoDiscount)
+                          .clamp(0.0, double.infinity);
+                      final formattedTotal =
+                          effectiveTotal == effectiveTotal.roundToDouble()
+                              ? 'SLE ${effectiveTotal.toInt()}'
+                              : 'SLE ${effectiveTotal.toStringAsFixed(2)}';
+
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: SaloneMarketTheme.accent,
+                            foregroundColor: SaloneMarketTheme.onAccent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                    ),
+                          ),
+                          onPressed: (hasUnavailable ||
+                                  selectedAddress == null ||
+                                  checkoutNotifier.isProcessing)
+                              ? null
+                              : _handlePlaceOrder,
+                          child: checkoutNotifier.isProcessing
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: SaloneMarketTheme.onAccent,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Confirm & Place Order ($formattedTotal)',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
                 ],

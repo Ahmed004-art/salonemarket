@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,14 +7,20 @@ import 'package:provider/provider.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/salone_cards.dart';
+import '../../../../core/widgets/salone_motion.dart';
+import '../../../../core/widgets/salone_states.dart';
+import '../../../../core/widgets/salone_text_field.dart';
+import '../../../auth/presentation/controllers/auth_notifier.dart';
+import '../../../cart/presentation/controllers/cart_notifier.dart';
 import '../controllers/marketplace_notifier.dart';
 import '../widgets/category_chip_bar.dart';
-import '../widgets/empty_state_view.dart';
 import '../widgets/marketplace_app_bar.dart';
 import '../widgets/product_card.dart';
 import '../widgets/promotional_carousel.dart';
 
-/// Customer Home Screen featuring marketplace highlights, categories, and curated products.
+/// Customer Home Screen featuring personalized greeting, categories, promotions,
+/// and curated product grids.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -28,7 +35,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MarketplaceNotifier>().loadHome();
+      if (mounted) {
+        context.read<MarketplaceNotifier>().loadHome();
+      }
     });
   }
 
@@ -36,7 +45,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _currentBottomNavIndex = index);
     switch (index) {
       case 0:
-        // Already on Home
         break;
       case 1:
         context.push(Routes.categories);
@@ -56,139 +64,233 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final marketplace = context.watch<MarketplaceNotifier>();
+    final auth = context.watch<AuthNotifier>();
+    final cartCount = context.watch<CartNotifier>().itemCount;
     final isLoading = marketplace.isHomeLoading;
     final categories = marketplace.categories;
     final featured = marketplace.featuredProducts;
     final popular = marketplace.popularProducts;
 
-    return Scaffold(
-      backgroundColor: SaloneMarketTheme.background,
-      appBar: const MarketplaceAppBar(),
-      body: RefreshIndicator(
-        color: SaloneMarketTheme.accent,
-        backgroundColor: SaloneMarketTheme.surface,
-        onRefresh: () => marketplace.loadHome(forceRefresh: true),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: AppSpacing.sm),
+    final firstName = auth.userDisplayName.split(' ').first;
+    final greeting = auth.isAuthenticated && firstName.isNotEmpty
+        ? 'Hello, $firstName'
+        : 'Welcome to SaloneMarket';
 
-              // Search Trigger Bar
-              _buildSearchBarTrigger(context),
-              const SizedBox(height: AppSpacing.md),
-
-              // Hero Promotional Banner
-              const PromotionalCarousel(),
-              const SizedBox(height: AppSpacing.lg),
-
-              // Categories Section
-              if (categories.isNotEmpty) ...[
-                _buildSectionHeader(
-                  title: 'Shop by Category',
-                  actionLabel: 'See All',
-                  onAction: () => context.push(Routes.categories),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                CategoryChipBar(
-                  categories: categories,
-                  selectedCategoryId: null,
-                  onCategorySelected: (catId) {
-                    if (catId != null) {
-                      context.push('/categories/$catId');
-                    } else {
-                      context.push(Routes.categories);
-                    }
-                  },
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-
-              // Featured Products Section
-              if (isLoading && featured.isEmpty)
-                _buildLoadingSection('Featured Products')
-              else if (featured.isNotEmpty) ...[
-                _buildSectionHeader(
-                  title: 'Featured Products',
-                  actionLabel: 'Browse All',
-                  onAction: () => context.push(Routes.categories),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                _buildProductGrid(featured.take(4).toList()),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-
-              // Popular / Trending Section
-              if (popular.isNotEmpty) ...[
-                _buildSectionHeader(
-                  title: 'Trending in Sierra Leone',
-                  actionLabel: 'See More',
-                  onAction: () => context.push(Routes.categories),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                _buildProductGrid(popular.take(4).toList()),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-
-              // Unconfigured / Empty Marketplace State
-              if (!isLoading && featured.isEmpty && popular.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                  child: EmptyStateView(
-                    icon: Icons.storefront_outlined,
-                    title: 'Welcome to SaloneMarket',
-                    message:
-                        'Connect with authentic Sierra Leonean merchants, artisans, and vendors across the country.',
-                    actionLabel: 'Explore Categories',
-                    onAction: () => context.push(Routes.categories),
+    final scrollBody = SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Personalized Greeting & Delivery Location Strip
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        greeting,
+                        style: GoogleFonts.manrope(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: SaloneColors.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 13,
+                            color: SaloneColors.secondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Delivering across Freetown & Sierra Leone',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: SaloneColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-
-              const SizedBox(height: AppSpacing.xxl),
-            ],
+              ],
+            ),
           ),
-        ),
+
+          // Search Bar Trigger
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: SaloneSearchBar(
+              readOnly: true,
+              hint: 'Search electronics, fashion, groceries...',
+              onTap: () => context.push(Routes.search),
+              trailing: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: SaloneColors.cream,
+                  borderRadius: BorderRadius.circular(AppRadius.small),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  size: 16,
+                  color: SaloneColors.primary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Promotional Carousel (real data)
+          const PromotionalCarousel(),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Categories
+          if (categories.isNotEmpty) ...[
+            SaloneSectionHeader(
+              title: 'Shop by Category',
+              actionLabel: 'See All',
+              onAction: () => context.push(Routes.categories),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            CategoryChipBar(
+              categories: categories,
+              selectedCategoryId: null,
+              onCategorySelected: (catId) {
+                if (catId != null) {
+                  context.push('/categories/$catId');
+                } else {
+                  context.push(Routes.categories);
+                }
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+
+          // Featured Products
+          if (isLoading && featured.isEmpty) ...[
+            const SaloneSectionHeader(
+              title: 'Featured Products',
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const SaloneProductGridSkeleton(itemCount: 4),
+            const SizedBox(height: AppSpacing.lg),
+          ] else if (featured.isNotEmpty) ...[
+            SaloneSectionHeader(
+              title: 'Featured Products',
+              subtitle: 'Handpicked from verified local stores',
+              actionLabel: 'Browse All',
+              onAction: () => context.push(Routes.categories),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _buildProductGrid(featured.take(4).toList()),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+
+          // Popular / Trending Products
+          if (popular.isNotEmpty) ...[
+            SaloneSectionHeader(
+              title: 'Trending in Sierra Leone',
+              actionLabel: 'See More',
+              onAction: () => context.push(Routes.categories),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _buildProductGrid(popular.take(4).toList()),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+
+          // Empty State
+          if (!isLoading && featured.isEmpty && popular.isEmpty)
+            SaloneEmptyState(
+              icon: Icons.storefront_outlined,
+              title: 'Explore SaloneMarket',
+              message:
+                  'Connect with verified Sierra Leonean merchants, artisans, and grocers across the country.',
+              actionLabel: 'Explore Categories',
+              onAction: () => context.push(Routes.categories),
+            ),
+
+          const SizedBox(height: AppSpacing.xxl),
+        ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentBottomNavIndex,
-        onTap: _onBottomNavTapped,
-        backgroundColor: SaloneMarketTheme.surface,
-        selectedItemColor: SaloneMarketTheme.accent,
-        unselectedItemColor: SaloneMarketTheme.muted,
-        type: BottomNavigationBarType.fixed,
-        selectedLabelStyle: GoogleFonts.dmSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-        unselectedLabelStyle: GoogleFonts.dmSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-        items: const [
-          BottomNavigationBarItem(
+    );
+
+    return Scaffold(
+      backgroundColor: SaloneColors.background,
+      appBar: const MarketplaceAppBar(),
+      body: kIsWeb
+          ? scrollBody
+          : RefreshIndicator(
+              color: SaloneColors.secondary,
+              backgroundColor: SaloneColors.surface,
+              onRefresh: () => marketplace.loadHome(forceRefresh: true),
+              child: scrollBody,
+            ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentBottomNavIndex,
+        onDestinationSelected: _onBottomNavTapped,
+        backgroundColor: SaloneColors.surface,
+        indicatorColor: SaloneColors.cream,
+        height: 66,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
+            selectedIcon: Icon(Icons.home_rounded, color: SaloneColors.primary),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
+          const NavigationDestination(
             icon: Icon(Icons.grid_view_outlined),
-            activeIcon: Icon(Icons.grid_view),
+            selectedIcon:
+                Icon(Icons.grid_view_rounded, color: SaloneColors.primary),
             label: 'Catalog',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_bag_outlined),
-            activeIcon: Icon(Icons.shopping_bag),
+          NavigationDestination(
+            icon: Badge(
+              isLabelVisible: cartCount > 0,
+              label: Text('$cartCount'),
+              backgroundColor: SaloneColors.gold,
+              textColor: SaloneColors.textPrimary,
+              child: const Icon(Icons.shopping_bag_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: cartCount > 0,
+              label: Text('$cartCount'),
+              backgroundColor: SaloneColors.gold,
+              textColor: SaloneColors.textPrimary,
+              child: const Icon(Icons.shopping_bag_rounded,
+                  color: SaloneColors.primary),
+            ),
             label: 'Cart',
           ),
-          BottomNavigationBarItem(
+          const NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
-            activeIcon: Icon(Icons.receipt_long),
+            selectedIcon:
+                Icon(Icons.receipt_long_rounded, color: SaloneColors.primary),
             label: 'Orders',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
+          const NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon:
+                Icon(Icons.person_rounded, color: SaloneColors.primary),
             label: 'Profile',
           ),
         ],
@@ -196,143 +298,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchBarTrigger(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: InkWell(
-        onTap: () => context.push(Routes.search),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: 12,
-          ),
-          decoration: BoxDecoration(
-            color: SaloneMarketTheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: SaloneMarketTheme.border),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.search,
-                size: 20,
-                color: SaloneMarketTheme.muted,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Search electronics, fashion, food...',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    color: SaloneMarketTheme.muted,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: SaloneMarketTheme.background,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Icon(
-                  Icons.tune,
-                  size: 16,
-                  color: SaloneMarketTheme.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader({
-    required String title,
-    String? actionLabel,
-    VoidCallback? onAction,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: SaloneMarketTheme.primary,
-              letterSpacing: -0.3,
-            ),
-          ),
-          if (actionLabel != null && onAction != null)
-            TextButton(
-              onPressed: onAction,
-              style: TextButton.styleFrom(
-                foregroundColor: SaloneMarketTheme.accent,
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-              ),
-              child: Text(
-                actionLabel,
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: SaloneMarketTheme.accent,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildProductGrid(List<dynamic> products) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           childAspectRatio: 0.68,
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
+          crossAxisSpacing: AppSpacing.md,
+          mainAxisSpacing: AppSpacing.md,
         ),
         itemCount: products.length,
         itemBuilder: (context, index) {
-          return ProductCard(product: products[index]);
+          return SaloneFadeIn(
+            delayMs: index * 40,
+            child: ProductCard(product: products[index]),
+          );
         },
-      ),
-    );
-  }
-
-  Widget _buildLoadingSection(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: SaloneMarketTheme.primary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                SaloneMarketTheme.accent,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

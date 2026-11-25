@@ -102,14 +102,21 @@ serve(async (req) => {
 
     // 9. Build receipt number
     const receiptNumber = 'SM-RCP-' + customer_order_id.substring(0, 8).toUpperCase()
+    const isSimulated = transaction
+      ? Boolean(transaction.is_simulated)
+      : order.payment_method === 'simulated'
 
     // 10. Build structured receipt JSON
     const receipt = {
       receipt_number: receiptNumber,
       generated_at: new Date().toISOString(),
-      is_simulated: true,
-      disclaimer:
-        'This is a simulated receipt generated for an academic project. No real financial transaction has occurred.',
+      is_simulated: isSimulated,
+      ...(isSimulated
+        ? {
+            disclaimer:
+              'This is a simulated receipt generated for an academic project. No real financial transaction has occurred.',
+          }
+        : {}),
 
       order: {
         id: order.id,
@@ -158,7 +165,7 @@ serve(async (req) => {
         delivery_fee: parseFloat(order.delivery_fee),
         platform_fee: parseFloat(order.platform_fee),
         total: parseFloat(order.total),
-        currency: 'SLL',
+        currency: transaction ? transaction.currency : 'SLE',
       },
 
       transaction: transaction

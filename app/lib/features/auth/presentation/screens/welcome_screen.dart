@@ -5,19 +5,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../widgets/auth_button.dart';
+import '../../../../core/widgets/salone_buttons.dart';
+import '../../../../core/widgets/salone_logo.dart';
+import '../../../../core/widgets/salone_motion.dart';
 
-/// The initial landing screen greeting new and returning shoppers.
-///
-/// Introduces SaloneMarket's value proposition with editorial typography,
-/// Sierra Leone commerce identity, and clear entry points.
+/// Welcome screen for returning unauthenticated users.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SaloneMarketTheme.background,
+      backgroundColor: SaloneColors.background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -34,148 +33,107 @@ class WelcomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const SizedBox(height: AppSpacing.sm),
+                      const SaloneLogo(
+                        variant: SaloneLogoVariant.full,
+                        markSize: 42,
+                        showTagline: true,
+                      ),
                       const Spacer(),
 
-                      // Brand Emblem
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: SaloneMarketTheme.primary,
-                          borderRadius: BorderRadius.circular(AppRadius.medium),
-                          border: Border.all(
-                            color: SaloneMarketTheme.accent,
-                            width: 1.5,
+                      // Editorial Hero Panel
+                      SaloneFadeIn(
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          decoration: BoxDecoration(
+                            color: SaloneColors.primary,
+                            borderRadius: BorderRadius.circular(AppRadius.xl),
+                            boxShadow: AppShadows.elevated,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.pill),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: const BoxDecoration(
+                                        color: SaloneColors.gold,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Trusted Sierra Leone Commerce',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: SaloneColors.cream,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+                              Text(
+                                'Direct from local vendors to your door.',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  height: 1.15,
+                                  letterSpacing: -0.6,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              Text(
+                                'Shop verified stores across Freetown, Bo, Kenema, and Makeni with Monime mobile-money protection.',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: SaloneColors.cream.withValues(alpha: 0.85),
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Center(
-                          child: Text(
-                            'SM',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: SaloneMarketTheme.accent,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
                       ),
-                      const SizedBox(height: AppSpacing.xl),
+                      const Spacer(),
 
-                      // Sierra Leone Tagline Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: SaloneMarketTheme.surface,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          border: Border.all(color: SaloneMarketTheme.border),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: SaloneMarketTheme.accent,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Text(
-                              'Sierra Leone Mobile Commerce',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: SaloneMarketTheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-
-                      // Editorial Headline
-                      Text(
-                        'Direct from\nlocal vendors\nto your door.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w700,
-                          color: SaloneMarketTheme.primary,
-                          height: 1.15,
-                          letterSpacing: -0.6,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      // Subtitle
-                      Text(
-                        'Connect with trusted merchants in Freetown, Bo, Kenema, Makeni, and across Sierra Leone. Authentic products, fair pricing, and clear tracking.',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                          color: SaloneMarketTheme.muted,
-                          height: 1.55,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // Value propositions
-                      _buildPillarItem(
-                        icon: Icons.storefront_outlined,
-                        title: 'Verified Local Sellers',
-                        subtitle: 'Supporting Sierra Leonean entrepreneurs',
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _buildPillarItem(
-                        icon: Icons.payments_outlined,
-                        title: 'Transparent Leone (Le) Pricing',
-                        subtitle: 'No hidden currency conversion fees',
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _buildPillarItem(
-                        icon: Icons.local_shipping_outlined,
-                        title: 'Vendor-Direct Fulfilment',
-                        subtitle: 'Split orders and clear milestone tracking',
-                      ),
-
-                      const Spacer(flex: 2),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // Action CTAs
-                      AuthButton(
-                        text: 'Get Started (Create Account)',
-                        onPressed: () => context.push(Routes.register),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      AuthButton(
-                        text: 'Sign In to Account',
+                      // Actions
+                      SalonePrimaryButton(
+                        label: 'Sign In',
+                        icon: Icons.login_rounded,
                         onPressed: () => context.push(Routes.login),
-                        variant: AuthButtonVariant.secondary,
                       ),
                       const SizedBox(height: AppSpacing.md),
-
-                      // Guest browse link
+                      SaloneSecondaryButton(
+                        label: 'Create Account',
+                        onPressed: () => context.push(Routes.register),
+                        borderColor: SaloneColors.primary,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
                       Center(
-                        child: TextButton(
+                        child: SaloneGhostButton(
+                          label: 'Browse Marketplace as Guest',
+                          icon: Icons.storefront_outlined,
                           onPressed: () => context.go(Routes.home),
-                          style: TextButton.styleFrom(
-                            foregroundColor: SaloneMarketTheme.muted,
-                          ),
-                          child: Text(
-                            'Continue as Guest',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.sm),
                     ],
                   ),
                 ),
@@ -184,56 +142,6 @@ class WelcomeScreen extends StatelessWidget {
           },
         ),
       ),
-    );
-  }
-
-  Widget _buildPillarItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: SaloneMarketTheme.surface,
-            borderRadius: BorderRadius.circular(AppRadius.small),
-            border: Border.all(color: SaloneMarketTheme.border),
-          ),
-          child: Icon(
-            icon,
-            size: 18,
-            color: SaloneMarketTheme.primary,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.dmSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: SaloneMarketTheme.primary,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: SaloneMarketTheme.muted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

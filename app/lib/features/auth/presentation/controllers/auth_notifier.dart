@@ -50,7 +50,8 @@ class AuthNotifier extends ChangeNotifier {
 
   bool get isLoading => _status == AuthStatus.loading;
   bool get isAuthenticated =>
-      _status == AuthStatus.authenticated && _profile != null;
+      (_status == AuthStatus.authenticated && _profile != null) ||
+      (_repository.isAuthenticated && _profile != null);
   bool get isCustomer => _profile?.role == Roles.customer;
   bool get isVendor => _profile?.role == Roles.vendor;
   bool get isAdmin => _profile?.role == Roles.admin;
@@ -98,8 +99,12 @@ class AuthNotifier extends ChangeNotifier {
   }
 
   Future<void> _loadProfile(String userId) async {
-    _status = AuthStatus.loading;
-    notifyListeners();
+    // Only set loading if we don't already have a profile to avoid blanking
+    // screens that are already showing content (e.g. AdminDashboard).
+    if (_profile == null) {
+      _status = AuthStatus.loading;
+      notifyListeners();
+    }
 
     final result = await _repository.getUserProfile(userId);
     if (result is AuthSuccess<UserProfile>) {
@@ -107,11 +112,33 @@ class AuthNotifier extends ChangeNotifier {
       _status = AuthStatus.authenticated;
       _errorMessage = null;
     } else if (result is AuthFailure<UserProfile>) {
-      // Fallback if profile row is not yet created or offline
+      // ── Fallback: profile row missing or DB temporarily unavailable ──────
+      // CRITICAL: preserve the existing role if we already have a profile
+      // loaded (e.g. refresh after a DB hiccup or RLS recursion error).
+      // Never downgrade an admin to 'customer' just because one network
+      // call failed.
+      final existingRole = _profile?.role;
+
+      // Also try to read the role from the Supabase JWT app_metadata / user_metadata
+      // so that an admin who opens the app fresh still gets the right role
+      // even before the profiles table is accessible.
+      final meta = _repository.currentUser?.appMetadata;
+      final metaRole = meta?['role'] as String?;
+
+      // Priority: existing role > metadata role > 'customer' (last resort)
+      final resolvedRole = existingRole ?? metaRole ?? Roles.customer;
+
+      debugPrint(
+        '⚠️ [AuthNotifier._loadProfile] Profile load failed: ${(result as AuthFailure).message}\n'
+        '   Preserving role: $resolvedRole (existing=$existingRole, meta=$metaRole)',
+      );
+
       _profile = UserProfile(
         id: userId,
-        fullName: _repository.currentUser?.userMetadata?['full_name'] as String? ?? '',
-        role: Roles.customer,
+        fullName: _profile?.fullName ?? _repository.currentUser?.userMetadata?['full_name'] as String? ?? '',
+        role: resolvedRole,
+        phone: _profile?.phone,
+        avatarUrl: _profile?.avatarUrl,
       );
       _status = AuthStatus.authenticated;
     }
@@ -237,6 +264,54 @@ class AuthNotifier extends ChangeNotifier {
     return false;
   }
 
+  /// Updates profile details (e.g. full name, phone number, avatar URL) for the signed-in user.
+  Future<bool> updateProfile({
+    required String fullName,
+    String? phone,
+    String? avatarUrl,
+  }) async {
+    final current = _profile;
+    if (current == null) return false;
+
+    _status = AuthStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    final result = await _repository.updateUserProfile(
+      userId: current.id,
+      fullName: fullName,
+      phone: phone,
+      avatarUrl: avatarUrl,
+    );
+
+    if (result is AuthSuccess<UserProfile>) {
+      _profile = result.value;
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return true;
+    } else if (result is AuthFailure<UserProfile>) {
+      _errorMessage = result.message;
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return false;
+    }
+    return false;
+  }
+
+  /// Uploads avatar image bytes to the storage bucket and returns the public URL.
+  Future<String?> uploadAvatar({
+    required Uint8List bytes,
+    required String fileExtension,
+  }) async {
+    final current = _profile;
+    if (current == null) return null;
+    return await _repository.uploadAvatar(
+      userId: current.id,
+      bytes: bytes,
+      fileExtension: fileExtension,
+    );
+  }
+
   /// Signs the user out.
   Future<void> signOut() async {
     _status = AuthStatus.loading;
@@ -250,6 +325,18 @@ class AuthNotifier extends ChangeNotifier {
     _status = AuthStatus.unauthenticated;
     _errorMessage = null;
     notifyListeners();
+  }
+
+  /// Force-reloads the profile from Supabase.
+  ///
+  /// Call this from screens that require up-to-date role information
+  /// (e.g. AdminDashboardScreen) to correct a stale fallback role that
+  /// may have been set when the initial profile load failed due to a
+  /// network or database error.
+  Future<void> refreshProfile() async {
+    final userId = currentUserId;
+    if (userId == null) return;
+    await _loadProfile(userId);
   }
 
   /// Clears active error messages.

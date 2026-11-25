@@ -107,6 +107,32 @@ class FakeAuthRepository implements AuthRepository {
     mockProfile = null;
     return const AuthSuccess(null);
   }
+
+  @override
+  Future<AuthResult<UserProfile>> updateUserProfile({
+    required String userId,
+    required String fullName,
+    String? phone,
+    String? avatarUrl,
+  }) async {
+    mockProfile = UserProfile(
+      id: userId,
+      fullName: fullName,
+      role: mockProfile?.role ?? Roles.customer,
+      phone: phone,
+      avatarUrl: avatarUrl,
+    );
+    return AuthSuccess(mockProfile!);
+  }
+
+  @override
+  Future<String?> uploadAvatar({
+    required String userId,
+    required dynamic bytes,
+    required String fileExtension,
+  }) async {
+    return 'https://example.com/avatar.jpg';
+  }
 }
 
 void main() {
